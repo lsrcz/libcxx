@@ -21,10 +21,14 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
+/**
+ * 定义nullptr_t, 可转换为任何指针类型
+ */
 struct _LIBCPP_TEMPLATE_VIS nullptr_t
 {
     void* __lx;
 
+    /// __nat是为了进行bool转换
     struct __nat {int __for_bool_;};
 
     _LIBCPP_ALWAYS_INLINE _LIBCPP_CONSTEXPR nullptr_t() : __lx(0) {}

@@ -23,7 +23,7 @@
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/// 二元函数
 template <class _Arg1, class _Arg2, class _Result>
 struct _LIBCPP_TEMPLATE_VIS binary_function
 {
@@ -31,7 +31,7 @@ struct _LIBCPP_TEMPLATE_VIS binary_function
     typedef _Arg2   second_argument_type;
     typedef _Result result_type;
 };
-
+/// 有返回值类型，测试能否读取result_type，若不能则没有返回值类型
 template <class _Tp>
 struct __has_result_type
 {
@@ -54,7 +54,11 @@ struct _LIBCPP_TEMPLATE_VIS less : binary_function<_Tp, _Tp, bool>
     bool operator()(const _Tp& __x, const _Tp& __y) const
         {return __x < __y;}
 };
-
+/**
+ * 使用std::forward避免复制，均转为对应的引用
+ * 直接使用<比较
+ * 允许不指定模板参数
+ */
 #if _LIBCPP_STD_VER > 11
 template <>
 struct _LIBCPP_TEMPLATE_VIS less<void>
@@ -70,7 +74,9 @@ struct _LIBCPP_TEMPLATE_VIS less<void>
 #endif
 
 // __weak_result_type
-
+/**
+ * 检查是否继承自单目/双目运算符类
+ */
 template <class _Tp>
 struct __derives_from_unary_function
 {
@@ -299,7 +305,9 @@ struct __weak_result_type<_Rp (_Cp::*)(_A1, _A2, _A3...) const volatile>
 #endif // _LIBCPP_HAS_NO_VARIADICS
 
 #ifndef _LIBCPP_CXX03_LANG
-
+/**
+ * 获取调用之后的返回值
+ */
 template <class _Tp, class ..._Args>
 struct __invoke_return
 {
@@ -575,7 +583,9 @@ constexpr allocator_arg_t allocator_arg = allocator_arg_t();
 #endif
 
 // uses_allocator
-
+/**
+ * 和标准库类型配合，allocator_type在标准库的使用allocator的类型上均有定义
+ */
 template <class _Tp>
 struct __has_allocator_type
 {
@@ -629,14 +639,18 @@ template <class _Tp, class _Alloc, class ..._Args>
 struct __uses_alloc_ctor
     : integral_constant<int, __uses_alloc_ctor_imp<_Tp, _Alloc, _Args...>::value>
     {};
-
+/**
+ * 不使用allocator，value为1，直接将args传递给__args
+ */
 template <class _Tp, class _Allocator, class... _Args>
 inline _LIBCPP_INLINE_VISIBILITY
 void __user_alloc_construct_impl (integral_constant<int, 0>, _Tp *__storage, const _Allocator &, _Args &&... __args )
 {
     new (__storage) _Tp (_VSTD::forward<_Args>(__args)...);
 }
-
+/**
+ * 使用allocator，而且可使用allocator_arg_t构造？
+ */
 // FIXME: This should have a version which takes a non-const alloc.
 template <class _Tp, class _Allocator, class... _Args>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -644,7 +658,9 @@ void __user_alloc_construct_impl (integral_constant<int, 1>, _Tp *__storage, con
 {
     new (__storage) _Tp (allocator_arg, __a, _VSTD::forward<_Args>(__args)...);
 }
-
+/**
+ * 不可使用allocator_arg_t构造？
+ */
 // FIXME: This should have a version which takes a non-const alloc.
 template <class _Tp, class _Allocator, class... _Args>
 inline _LIBCPP_INLINE_VISIBILITY
