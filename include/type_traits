@@ -391,20 +391,30 @@ namespace std
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/**
+ * 前向声明 pair reference_wrapper hash
+ */
 template <class _T1, class _T2> struct _LIBCPP_TEMPLATE_VIS pair;
 template <class _Tp> class _LIBCPP_TEMPLATE_VIS reference_wrapper;
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS hash;
 
+/**
+ * 空类型
+ */
 template <class>
 struct __void_t { typedef void type; };
-
+/**
+ * 本身的类型
+ */
 template <class _Tp>
 struct __identity { typedef _Tp type; };
 
 template <class _Tp, bool>
 struct _LIBCPP_TEMPLATE_VIS __dependent_type : public _Tp {};
 
+/**
+ * 如果_Bp为真则为_If的类型，否则为_Then的类型
+ */
 template <bool _Bp, class _If, class _Then>
     struct _LIBCPP_TEMPLATE_VIS conditional {typedef _If type;};
 template <class _If, class _Then>
@@ -413,10 +423,20 @@ template <class _If, class _Then>
 #if _LIBCPP_STD_VER > 11
 template <bool _Bp, class _If, class _Then> using conditional_t = typename conditional<_Bp, _If, _Then>::type;
 #endif
-
+/**
+ * 利用SFINAE原则，
+ * 当第一个参数为false的时候，匹配第一个模板，不对第二个参数进行求值，
+ * 因此不要求第二个参数一定定义了type类型，只要该模板存在便可进行实例化
+ * 第二个参数为一个定义了type类型的模板类。如果第一个参数是true会将第二个参数的type定义为type类型
+ */
 template <bool, class _Tp> struct _LIBCPP_TEMPLATE_VIS __lazy_enable_if {};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS __lazy_enable_if<true, _Tp> {typedef typename _Tp::type type;};
-
+/**
+ * 也是利用SFINAE原则
+ * 但是不论第一个元素为false还是true，都需要_Tp存在实例，不然会导致模板解析失败
+ * 将_Tp定义为type。在调用的时候使用enable_if<U, V>::type，如果为false将无法匹配
+ * 这个可以用于模板匹配失败的时候禁止模板实例化
+ */
 template <bool, class _Tp = void> struct _LIBCPP_TEMPLATE_VIS enable_if {};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS enable_if<true, _Tp> {typedef _Tp type;};
 
@@ -426,7 +446,12 @@ template <bool _Bp, class _Tp = void> using enable_if_t = typename enable_if<_Bp
 
 // addressof
 #ifndef _LIBCPP_HAS_NO_BUILTIN_ADDRESSOF
-
+/**
+ * 即使重载了operator&也能获取真实地址
+ * 转换为cv char&然后取地址
+ * C++17开始为constexpr
+ * 可能为__builtin
+ */
 template <class _Tp>
 inline _LIBCPP_CONSTEXPR_AFTER_CXX14
 _LIBCPP_NO_CFI _LIBCPP_INLINE_VISIBILITY
@@ -448,7 +473,9 @@ addressof(_Tp& __x) _NOEXCEPT
 }
 
 #endif // _LIBCPP_HAS_NO_BUILTIN_ADDRESSOF
-
+/**
+ * obj-c支持
+ */
 #if defined(_LIBCPP_HAS_OBJC_ARC) && !defined(_LIBCPP_PREDEFINED_OBJC_ARC_ADDRESSOF)
 // Objective-C++ Automatic Reference Counting uses qualified pointers
 // that require special addressof() signatures. When
@@ -492,11 +519,17 @@ addressof(__unsafe_unretained _Tp& __x) _NOEXCEPT
 #if !defined(_LIBCPP_CXX03_LANG)
 template <class _Tp> _Tp* addressof(const _Tp&&) noexcept = delete;
 #endif
-
+/**
+ * 两字节的结构，用于模板匹配的时候做标记
+ */
 struct __two {char __lx[2];};
 
 // helper class:
-
+/**
+ * helper class:
+ * 整型常量，有类型转换运算符可以直接转换。
+ * 在C++14中可以调用进行转换
+ */
 template <class _Tp, _Tp __v>
 struct _LIBCPP_TEMPLATE_VIS integral_constant
 {
@@ -521,14 +554,20 @@ using bool_constant = integral_constant<bool, __b>;
 #else
 #define _LIBCPP_BOOL_CONSTANT(__b) integral_constant<bool,(__b)>
 #endif
-
+/**
+ * 真与假的类型，
+ * 分别对应integral_constant<bool, true>和false
+ */
 typedef _LIBCPP_BOOL_CONSTANT(true)  true_type;
 typedef _LIBCPP_BOOL_CONSTANT(false) false_type;
 
 #if !defined(_LIBCPP_CXX03_LANG)
 
 // __lazy_and
-
+/**
+ * 逐个解包，遇到第一个false结束，
+ * _P1::type::value
+ */
 template <bool _Last, class ..._Preds>
 struct __lazy_and_impl;
 
@@ -548,7 +587,10 @@ template <class _P1, class ..._Pr>
 struct __lazy_and : __lazy_and_impl<_P1::type::value, _Pr...> {};
 
 // __lazy_or
-
+/**
+ * 逐个解包，遇到第一个true结束，
+ * _P1::type::value
+ */
 template <bool _List, class ..._Preds>
 struct __lazy_or_impl;
 
@@ -566,11 +608,18 @@ template <class _P1, class ..._Pr>
 struct __lazy_or : __lazy_or_impl<_P1::type::value, _Pr...> {};
 
 // __lazy_not
-
+/**
+ * 直接not, 使用_Pred::type::value
+ */
 template <class _Pred>
 struct __lazy_not : integral_constant<bool, !_Pred::type::value> {};
 
 // __and_
+/**
+ * 逐个解包，
+ * 关键为conditional<_B0::value, __and_<_B1, _B2, _Bn...>, _B0>::type
+ * 如果_B0是假，则为假，否则解包继续比较
+ */
 template<class...> struct __and_;
 template<> struct __and_<> : true_type {};
 
@@ -584,6 +633,9 @@ struct __and_<_B0, _B1, _B2, _Bn...>
         : conditional<_B0::value, __and_<_B1, _B2, _Bn...>, _B0>::type {};
 
 // __or_
+/**
+ * 类似__and_
+ */
 template<class...> struct __or_;
 template<> struct __or_<> : false_type {};
 
@@ -597,13 +649,20 @@ struct __or_<_B0, _B1, _B2, _Bn...>
         : conditional<_B0::value, _B0, __or_<_B1, _B2, _Bn...> >::type {};
 
 // __not_
+/**
+ * __not_
+ */
 template<class _Tp> 
 struct __not_ : conditional<_Tp::value, false_type, true_type>::type {};
 
 #endif // !defined(_LIBCPP_CXX03_LANG)
 
 // is_const
-
+/**
+ * 利用模版匹配原则
+ * 特化接受常量的版本
+ * 以下类似
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_const            : public false_type {};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_const<_Tp const> : public true_type {};
 
@@ -779,7 +838,10 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_rvalue_reference_v
     = is_rvalue_reference<_Tp>::value;
 #endif
 // is_union
-
+/**
+ * clang编译器不支持内建is_union，全部被定义为false_type。
+ * 如果支持将使用内建函数
+ */
 #if __has_feature(is_union) || (_GNUC_VER >= 403)
 
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_union
@@ -799,7 +861,10 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_union_v
 #endif
 
 // is_class
-
+/**
+ * clang不支持内建is_class
+ * 通过检查是否可以有成员指针检查是否为类
+ */
 #if __has_feature(is_class) || (_GNUC_VER >= 403)
 
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_class
@@ -834,14 +899,20 @@ template <class _Tp, class _Up> _LIBCPP_CONSTEXPR bool is_same_v
 #endif
 
 // is_function
-
+/**
+ * 不是类/联合体/void/引用/nullptr的话进行判断
+ */
 namespace __libcpp_is_function_imp
 {
 struct __dummy_type {};
+/// 如果是函数，可以被decay为指针，则实例化这个
 template <class _Tp> char  __test(_Tp*);
 template <class _Tp> char __test(__dummy_type);
+/// 否则实例化这个
 template <class _Tp> __two __test(...);
+/// 类型为_Tp的引用
 template <class _Tp> _Tp&  __source(int);
+/// 下面的不会被初始化？兼容性？
 template <class _Tp> __dummy_type __source(...);
 }
 
@@ -874,10 +945,10 @@ struct __member_pointer_traits_imp
 {  // forward declaration; specializations later
 };
 
-
+/// 若非成员指针则为false
 template <class _Tp> struct __libcpp_is_member_function_pointer
     : public false_type {};
-
+/// 若为成员指针则判断是否为函数。
 template <class _Ret, class _Class>
 struct __libcpp_is_member_function_pointer<_Ret _Class::*>
     : public is_function<_Ret> {};
@@ -904,7 +975,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_member_pointer_v
 #endif
 
 // is_member_object_pointer
-
+/**
+ * 是成员指针而非成员函数指针
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_member_object_pointer
     : public integral_constant<bool, is_member_pointer<_Tp>::value &&
                                     !is_member_function_pointer<_Tp>::value> {};
@@ -915,7 +988,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_member_object_pointer_v
 #endif
 
 // is_enum
-
+/**
+ * 内建函数或不是其他各种类型
+ */
 #if __has_feature(is_enum) || (_GNUC_VER >= 403)
 
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_enum
@@ -1006,7 +1081,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_compound_v
 
 
 // __is_referenceable  [defns.referenceable]
-
+/**
+ * 如果可以引用实例化第一个
+ */
 struct __is_referenceable_impl {
     template <class _Tp> static _Tp& __test(int);
     template <class _Tp> static __two __test(...);
@@ -1018,7 +1095,9 @@ struct __is_referenceable : integral_constant<bool,
 
 
 // add_const
-
+/**
+ * 若为引用或函数或本来就是const则不添加
+ */
 template <class _Tp, bool = is_reference<_Tp>::value ||
                             is_function<_Tp>::value  ||
                             is_const<_Tp>::value     >
@@ -1035,7 +1114,7 @@ template <class _Tp> using add_const_t = typename add_const<_Tp>::type;
 #endif
 
 // add_volatile
-
+/// 类似
 template <class _Tp, bool = is_reference<_Tp>::value ||
                             is_function<_Tp>::value  ||
                             is_volatile<_Tp>::value  >
@@ -1061,7 +1140,9 @@ template <class _Tp> using add_cv_t = typename add_cv<_Tp>::type;
 #endif
 
 // remove_reference
-
+/**
+ * 偏特化多个模板，参数均被推导为非引用类型
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_reference        {typedef _Tp type;};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_reference<_Tp&>  {typedef _Tp type;};
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
@@ -1073,7 +1154,11 @@ template <class _Tp> using remove_reference_t = typename remove_reference<_Tp>::
 #endif
 
 // add_lvalue_reference
-
+/**
+ * 如果可以引用 type为_Tp&
+ * 否则为_Tp
+ * 后面的添加rvalue属性，这个符合引用折叠规则，有可能不做转化依然为左值
+ */
 template <class _Tp, bool = __is_referenceable<_Tp>::value> struct __add_lvalue_reference_impl            { typedef _Tp  type; };
 template <class _Tp                                       > struct __add_lvalue_reference_impl<_Tp, true> { typedef _Tp& type; };
 
@@ -1099,7 +1184,31 @@ template <class _Tp> using add_rvalue_reference_t = typename add_rvalue_referenc
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-
+/**
+ * 将T转换为引用，用于decltype表达式且可避免通过构造函数。
+ * declval通常用于接受可能不具有相同的构造函数，但是具有相同的成员函数，并且返回值很重要的模板参数的模板。
+ * 这个函数没有定义，不能被调用，只能在不会实际计算的语境中使用。
+ * 对于void类型返回类型仍然是void
+ * #include <utility>
+ * #include <iostream
+ *
+ * struct Default { int foo() const { return 1; } };
+ *
+ * struct NonDefault
+ * {
+ *     NonDefault(const NonDefault&) { }
+ *     int foo() const { return 1; }
+ * };
+ *
+ * int main()
+ * {
+ *     decltype(Default().foo()) n1 = 1;                   // type of n1 is int
+ *     decltype(NonDefault().foo()) n2 = n1;               // error: no default constructor
+ *     decltype(std::declval<NonDefault>().foo()) n2 = n1; // type of n2 is int
+ *     std::cout << "n1 = " << n1 << '\n'
+ *               << "n2 = " << n2 << '\n';
+ * }
+ */
 template <class _Tp> _Tp&& __declval(int);
 template <class _Tp> _Tp   __declval(long);
 
@@ -1137,14 +1246,18 @@ using __uncvref_t = typename __uncvref<_Tp>::type;
 template <class _Tp, class _Up>
 struct __is_same_uncvref : is_same<typename __uncvref<_Tp>::type,
                                    typename __uncvref<_Up>::type> {};
-
+/**
+ * 工具结构，可以接受任何参数作为构造函数
+ */
 struct __any
 {
     __any(...);
 };
 
 // remove_pointer
-
+/**
+ * 除去指针及其顶层const属性(底层const是保留的)
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_pointer                      {typedef _Tp type;};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_pointer<_Tp*>                {typedef _Tp type;};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_pointer<_Tp* const>          {typedef _Tp type;};
@@ -1173,7 +1286,10 @@ template <class _Tp> using add_pointer_t = typename add_pointer<_Tp>::type;
 #endif
 
 // is_signed
-
+/**
+ * 若为浮点数，为真
+ * 若为整数类型，则将-1和0进行比较
+ */
 template <class _Tp, bool = is_integral<_Tp>::value>
 struct __libcpp_is_signed_impl : public _LIBCPP_BOOL_CONSTANT(_Tp(-1) < _Tp(0)) {};
 
@@ -1193,7 +1309,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_signed_v
 #endif
 
 // is_unsigned
-
+/**
+ * 浮点数为假
+ */
 template <class _Tp, bool = is_integral<_Tp>::value>
 struct __libcpp_is_unsigned_impl : public _LIBCPP_BOOL_CONSTANT(_Tp(0) < _Tp(-1)) {};
 
@@ -1213,7 +1331,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_unsigned_v
 #endif
 
 // rank
-
+/**
+ * 获取数组的层数
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS rank
     : public integral_constant<size_t, 0> {};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS rank<_Tp[]>
@@ -1227,7 +1347,11 @@ template <class _Tp> _LIBCPP_CONSTEXPR size_t rank_v
 #endif
 
 // extent
-
+/**
+ * 返回数组第n维的元素个数
+ * 非数组为0
+ * 如果不能获得为0
+ */
 template <class _Tp, unsigned _Ip = 0> struct _LIBCPP_TEMPLATE_VIS extent
     : public integral_constant<size_t, 0> {};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS extent<_Tp[], 0>
@@ -1245,7 +1369,9 @@ template <class _Tp, unsigned _Ip = 0> _LIBCPP_CONSTEXPR size_t extent_v
 #endif
 
 // remove_extent
-
+/**
+ * 除去最外层的一个维度之后的类型
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_extent
     {typedef _Tp type;};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_extent<_Tp[]>
@@ -1258,7 +1384,9 @@ template <class _Tp> using remove_extent_t = typename remove_extent<_Tp>::type;
 #endif
 
 // remove_all_extents
-
+/**
+ * 除去所有维度，获取类型
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_all_extents
     {typedef _Tp type;};
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS remove_all_extents<_Tp[]>
@@ -1271,7 +1399,9 @@ template <class _Tp> using remove_all_extents_t = typename remove_all_extents<_T
 #endif
 
 // decay
-
+/**
+ * decay模拟了按照值传递的过程
+ */
 template <class _Tp>
 struct _LIBCPP_TEMPLATE_VIS decay
 {
@@ -1296,7 +1426,9 @@ template <class _Tp> using decay_t = typename decay<_Tp>::type;
 #endif
 
 // is_abstract
-
+/**
+ * 使用内建函数
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_abstract
     : public integral_constant<bool, __is_abstract(_Tp)> {};
 
@@ -1306,7 +1438,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_abstract_v
 #endif
 
 // is_final
-
+/**
+ * 使用内建函数或者定义为false
+ */
 #if defined(_LIBCPP_HAS_IS_FINAL)
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS
 __libcpp_is_final : public integral_constant<bool, __is_final(_Tp)> {};
@@ -1326,7 +1460,10 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_final_v
 #endif
 
 // is_base_of
-
+/**
+ * clang内建
+ * 若无内建则进行派生类到基类引用的转换来测试
+ */
 #ifdef _LIBCPP_HAS_IS_BASE_OF
 
 template <class _Bp, class _Dp>
@@ -1349,6 +1486,9 @@ struct _Src
     template <class _Up> operator const _Dst<_Up> &();
 };
 template <size_t> struct __one { typedef char type; };
+/**
+ *关键转换 尝试转换为基类类型
+ */
 template <class _Bp, class _Dp> typename __one<sizeof(_Dst<_Bp>(declval<_Src<_Dp> >()))>::type __test(int);
 template <class _Bp, class _Dp> __two __test(...);
 }
@@ -1366,7 +1506,11 @@ template <class _Bp, class _Dp> _LIBCPP_CONSTEXPR bool is_base_of_v
 #endif
 
 // is_convertible
-
+/**
+ * clang无内建
+ * 很复杂，但是本质并不难
+ * 辨别是否为指针/void，如果不是的话进行转换测试
+ */
 #if __has_feature(is_convertible_to) && !defined(_LIBCPP_USE_IS_CONVERTIBLE_FALLBACK)
 
 template <class _T1, class _T2> struct _LIBCPP_TEMPLATE_VIS is_convertible
@@ -1456,7 +1600,11 @@ template <class _From, class _To> _LIBCPP_CONSTEXPR bool is_convertible_v
 #endif
 
 // is_empty
-
+/**
+ * clang无内建
+ * 使用继承自_Tp和不继承的两个类的size进行比较
+ * C++规定空类的大小为1，因此不能直接测试类的大小，而要用一个继承的类
+ */
 #if __has_feature(is_empty) || (_GNUC_VER >= 407)
 
 template <class _Tp>
@@ -1492,7 +1640,11 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_empty_v
 #endif
 
 // is_polymorphic
-
+/**
+ * clang无内建
+ * 进行动态类型转换(dynamic_cast)为空指针再转换回来
+ * 如果不是多态的将不能进行转换
+ */
 #if __has_feature(is_polymorphic) || defined(_LIBCPP_COMPILER_MSVC)
 
 template <class _Tp>
@@ -1517,7 +1669,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_polymorphic_v
 #endif
 
 // has_virtual_destructor
-
+/**
+ * 使用内建或为false
+ */
 #if __has_feature(has_virtual_destructor) || (_GNUC_VER >= 403)
 
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS has_virtual_destructor
@@ -1536,7 +1690,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool has_virtual_destructor_v
 #endif
 
 // alignment_of
-
+/**
+ * 对齐方式
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS alignment_of
     : public integral_constant<size_t, __alignof__(_Tp)> {};
 
@@ -1547,13 +1703,14 @@ template <class _Tp> _LIBCPP_CONSTEXPR size_t alignment_of_v
 
 // aligned_storage
 
+/// 定义类型的链表
 template <class _Hp, class _Tp>
 struct __type_list
 {
     typedef _Hp _Head;
     typedef _Tp _Tail;
 };
-
+/// 不可创建的类，标记结尾
 struct __nat
 {
 #ifndef _LIBCPP_CXX03_LANG
@@ -1563,7 +1720,7 @@ struct __nat
     ~__nat() = delete;
 #endif
 };
-
+/// 对齐方式及其类型，节点
 template <class _Tp>
 struct __align_type
 {
@@ -1589,7 +1746,7 @@ typedef
     > > > > > > > > > > __all_types;
 
 template <class _TL, size_t _Align> struct __find_pod;
-
+/// 尾节点
 template <class _Hp, size_t _Align>
 struct __find_pod<__type_list<_Hp, __nat>, _Align>
 {
@@ -1599,7 +1756,7 @@ struct __find_pod<__type_list<_Hp, __nat>, _Align>
                              void
                          >::type type;
 };
-
+/// 找合适的只需要一组数据的对齐方式？非尾节点
 template <class _Hp, class _Tp, size_t _Align>
 struct __find_pod<__type_list<_Hp, _Tp>, _Align>
 {
@@ -1609,12 +1766,12 @@ struct __find_pod<__type_list<_Hp, _Tp>, _Align>
                              typename __find_pod<_Tp, _Align>::type
                          >::type type;
 };
-
+/// 找到最大的对齐方式
 template <class _TL, size_t _Len> struct __find_max_align;
 
 template <class _Hp, size_t _Len>
 struct __find_max_align<__type_list<_Hp, __nat>, _Len> : public integral_constant<size_t, _Hp::value> {};
-
+/// 如果_len大于比较大的则选择大的，否则选择小的
 template <size_t _Len, size_t _A1, size_t _A2>
 struct __select_align
 {
@@ -1624,11 +1781,11 @@ private:
 public:
     static const size_t value = _Len < __max ? __min : __max;
 };
-
+/// 找到小于len的最大的对齐方式
 template <class _Hp, class _Tp, size_t _Len>
 struct __find_max_align<__type_list<_Hp, _Tp>, _Len>
     : public integral_constant<size_t, __select_align<_Len, _Hp::value, __find_max_align<_Tp, _Len>::value>::value> {};
-
+/// 分配对齐的内存块
 template <size_t _Len, size_t _Align = __find_max_align<__all_types, _Len>::value>
 struct _LIBCPP_TEMPLATE_VIS aligned_storage
 {
@@ -1712,7 +1869,9 @@ template <size_t _Len, class ..._Types> using aligned_union_t = typename aligned
 #endif
 
 #endif  // _LIBCPP_HAS_NO_VARIADICS
-
+/**
+ * 类型提升&数值类型？全部提升到最近的浮点数类型之后作和
+ */
 template <class _Tp>
 struct __numeric_type
 {
@@ -1785,7 +1944,11 @@ template <class _A1, class _A2 = void, class _A3 = void>
 class __promote : public __promote_imp<_A1, _A2, _A3> {};
 
 // make_signed / make_unsigned
-
+/**
+ * 找到足够容纳的对应的有/无符号数
+ * 相同的cv-属性
+ * bool的不能被转换
+ */
 typedef
     __type_list<signed char,
     __type_list<signed short,
@@ -1945,8 +2108,19 @@ struct _LIBCPP_TEMPLATE_VIS make_unsigned
 template <class _Tp> using make_unsigned_t = typename make_unsigned<_Tp>::type;
 #endif
 
+/**
+ * 如果sizeof...(_Vp) == 0 没有type成员
+ * 如果sizeof...(_Vp) == 1 typedef std::decay<T0>::type type
+ * 如果sizeof...(_Vp) == 2
+ *
+ * 和C++14版本的实现细节不同
+ *
+ * 全部归至两个类型的模板上，然后
+ * typedef typename decay<decltype(
+        true ? _VSTD::declval<_Tp>() : _VSTD::declval<_Up>()
+      )>::type type;
+ */
 #ifdef _LIBCPP_HAS_NO_VARIADICS
-
 template <class _Tp, class _Up = void, class _Vp = void>
 struct _LIBCPP_TEMPLATE_VIS common_type
 {
@@ -2056,7 +2230,12 @@ template <class ..._Tp> using common_type_t = typename common_type<_Tp...>::type
 #endif  // _LIBCPP_HAS_NO_VARIADICS
 
 // is_assignable
-
+/**
+ * 如果_Arg和_Tp两个中有任何一个是void，则结果为false
+ * 否则尝试进行赋值，如果不能将_Arg赋值给_Tp则false，否则true
+ *
+ * 实现细节同旧版本不同
+ */
 template<typename, typename _Tp> struct __select_2nd { typedef _Tp type; };
 
 template <class _Tp, class _Arg>
@@ -2087,7 +2266,9 @@ template <class _Tp, class _Arg> _LIBCPP_CONSTEXPR bool is_assignable_v
 #endif
 
 // is_copy_assignable
-
+/**
+ * 拷贝赋值测试，通过将const左值赋值给左值
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_copy_assignable
     : public is_assignable<typename add_lvalue_reference<_Tp>::type,
                   typename add_lvalue_reference<typename add_const<_Tp>::type>::type> {};
@@ -2098,7 +2279,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_copy_assignable_v
 #endif
 
 // is_move_assignable
-
+/**
+ * 移动赋值测试，通过将右值引用赋值给左值
+ */
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_move_assignable
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
     : public is_assignable<typename add_lvalue_reference<_Tp>::type,
@@ -2113,14 +2296,17 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_move_assignable_v
 #endif
 
 // is_destructible
-
+/**
 //  if it's a reference, return true
 //  if it's a function, return false
 //  if it's   void,     return false
 //  if it's an array of unknown bound, return false
 //  Otherwise, return "std::declval<_Up&>().~_Up()" is well-formed
 //    where _Up is remove_all_extents<_Tp>::type
-
+ */
+/**
+ * 检查是否可调用析构函数
+ */
 template <class>
 struct __is_destructible_apply { typedef int type; };
 
@@ -2178,7 +2364,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_destructible_v
 // move
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-
+/**
+ * 无条件转为右值
+ */
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
 typename remove_reference<_Tp>::type&&
@@ -2187,7 +2375,10 @@ move(_Tp&& __t) _NOEXCEPT
     typedef typename remove_reference<_Tp>::type _Up;
     return static_cast<_Up&&>(__t);
 }
-
+/**
+ * 如果传入是左值则_Tp&&被折叠为& &&->&
+ * 如果传入是右值则_Tp&&不被折叠
+ */
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
 _Tp&&
@@ -2248,7 +2439,9 @@ public:
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-
+/**
+ * 返回一份完美转发的拷贝，右值被移动，左值被拷贝
+ */
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 typename decay<_Tp>::type
@@ -2270,7 +2463,9 @@ __decay_copy(const _Tp& __t)
 #endif
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
-
+/**
+ * 成员函数traits，包括所在类，返回值类型以及函数类型(返回值及参数类型)
+ */
 template <class _Rp, class _Class, class ..._Param>
 struct __member_pointer_traits_imp<_Rp (_Class::*)(_Param...), true, false>
 {
@@ -2727,7 +2922,9 @@ struct __member_pointer_traits_imp<_Rp (_Class::*)(_P0, _P1, _P2, ...) const vol
 };
 
 #endif  // _LIBCPP_HAS_NO_VARIADICS
-
+/**
+ * 如果不是成员函数而是成员变量，则没有函数类型的属性，只有类类型以及返回值类型
+ */
 template <class _Rp, class _Class>
 struct __member_pointer_traits_imp<_Rp _Class::*, false, true>
 {
@@ -2756,7 +2953,9 @@ struct __member_pointer_class_type<_Ret _ClassType::*> {
 };
 
 // result_of
-
+/**
+ * 返回可调用对象的返回值类型 未定义，在后有定义，这里是如果不支持变长模板则定义
+ */
 template <class _Callable> class result_of;
 
 #ifdef _LIBCPP_HAS_NO_VARIADICS
@@ -2908,7 +3107,10 @@ class _LIBCPP_TEMPLATE_VIS result_of<_Fn(_A0, _A1, _A2)>
 #endif  // _LIBCPP_HAS_NO_VARIADICS
 
 // template <class T, class... Args> struct is_constructible;
-
+/**
+ * 可构造，或使用内置函数
+ * 实现细节和旧版本不同
+ */
 namespace __is_construct
 {
 struct __nat {};
@@ -2919,7 +3121,9 @@ struct __nat {};
 
 template <class _Tp, class... _Args>
 struct __libcpp_is_constructible;
-
+/**
+ * 类型不相同，且为基类到派生类转换，且不能构造
+ */
 template <class _To, class _From>
 struct __is_invalid_base_to_derived_cast {
   static_assert(is_reference<_To>::value, "Wrong specialization");
@@ -2931,12 +3135,17 @@ struct __is_invalid_base_to_derived_cast {
         __lazy_not<__libcpp_is_constructible<_RawTo, _From>>
   >::value;
 };
-
+/**
+ * ?无用
+ */
 template <class _To, class _From>
 struct __is_invalid_lvalue_to_rvalue_cast : false_type {
   static_assert(is_reference<_To>::value, "Wrong specialization");
 };
-
+/**
+ * RawTo是函数为假
+ * RawFrom和RawTo不相同且RawTo不是RawFrom的基类则为假
+ */
 template <class _ToRef, class _FromRef>
 struct __is_invalid_lvalue_to_rvalue_cast<_ToRef&&, _FromRef&> {
   using _RawFrom = __uncvref_t<_FromRef>;
@@ -3233,7 +3442,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_default_constructible_v
 #endif
 
 // is_copy_constructible
-
+/**
+ * 使用const lref尝试构造
+ */
 template <class _Tp>
 struct _LIBCPP_TEMPLATE_VIS is_copy_constructible
     : public is_constructible<_Tp, 
@@ -3245,7 +3456,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_copy_constructible_v
 #endif
 
 // is_move_constructible
-
+/**
+ * 使用rref尝试构造
+ */
 template <class _Tp>
 struct _LIBCPP_TEMPLATE_VIS is_move_constructible
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
@@ -3261,7 +3474,14 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_move_constructible_v
 #endif
 
 // is_trivially_constructible
-
+/**
+ * clang无此特性
+ *
+ * From C++ reference:
+ *  same as is_constructible,
+ *  but the variable definition does not call any operation that is not trivial.
+ *  For the purposes of this check, the call to std::declval is considered trivial.
+ */
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
 #if __has_feature(is_trivially_constructible) || _GNUC_VER >= 501
@@ -3894,7 +4114,9 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_nothrow_destructible_v
 #endif
 
 // is_pod
-
+/**
+ * pod类型满足有默认构造，析构，拷贝构造以及拷贝赋值成员
+ */
 #if __has_feature(is_pod) || (_GNUC_VER >= 403)
 
 template <class _Tp> struct _LIBCPP_TEMPLATE_VIS is_pod
@@ -3987,6 +4209,9 @@ template <class _Tp> struct __is_reference_wrapper
 #ifndef _LIBCPP_CXX03_LANG
 
 // Check for complete types
+/**
+ * 检查是否为完全类型
+ */
 
 template <class ..._Tp> struct __check_complete;
 
@@ -4007,7 +4232,7 @@ struct __check_complete<_Hp, _Hp>
     : private __check_complete<_Hp>
 {
 };
-
+///直接编译期异常
 template <class _Tp>
 struct __check_complete<_Tp>
 {
@@ -4190,7 +4415,7 @@ using __enable_if_bullet6 = typename enable_if
 // __invoke forward declarations
 
 // fall back - none of the bullets
-
+/// 尝试调用匹配
 #define _LIBCPP_INVOKE_RETURN(...) \
     noexcept(noexcept(__VA_ARGS__)) -> decltype(__VA_ARGS__) \
     { return __VA_ARGS__; }
@@ -4414,7 +4639,9 @@ constexpr bool is_nothrow_callable_v = is_nothrow_callable<_Fn, _Ret>::value;
 
 template <class _Tp> struct __is_swappable;
 template <class _Tp> struct __is_nothrow_swappable;
-
+/**
+ * swap 使用move
+ */
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 #ifndef _LIBCPP_CXX03_LANG
@@ -4433,14 +4660,18 @@ swap(_Tp& __x, _Tp& __y) _NOEXCEPT_(is_nothrow_move_constructible<_Tp>::value &&
     __x = _VSTD::move(__y);
     __y = _VSTD::move(__t);
 }
-
+/**
+ * 交换数组
+ */
 template<class _Tp, size_t _Np>
 inline _LIBCPP_INLINE_VISIBILITY
 typename enable_if<
     __is_swappable<_Tp>::value
 >::type
 swap(_Tp (&__a)[_Np], _Tp (&__b)[_Np]) _NOEXCEPT_(__is_nothrow_swappable<_Tp>::value);
-
+/**
+ * 交换迭代器内容
+ */
 template <class _ForwardIterator1, class _ForwardIterator2>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -4467,7 +4698,7 @@ struct __swappable_with
     __test_swap(int);
     template <class, class>
     static __nat __test_swap(long);
-
+    ///如果正反均可交换则为true
     // Extra parens are needed for the C++03 definition of decltype.
     typedef decltype((__test_swap<_Tp, _Up>(0))) __swap1;
     typedef decltype((__test_swap<_Up, _Tp>(0))) __swap2;
@@ -4560,7 +4791,9 @@ constexpr bool is_nothrow_swappable_v = is_nothrow_swappable<_Tp>::value;
 #endif // _LIBCPP_STD_VER > 14
 
 #ifdef _LIBCPP_UNDERLYING_TYPE
-
+/**
+ * 获取枚举类型的隐含类型，使用内置函数
+ */
 template <class _Tp>
 struct underlying_type
 {
@@ -4583,7 +4816,9 @@ struct underlying_type
 
 #endif // _LIBCPP_UNDERLYING_TYPE
 
-
+/**
+ * 使用SFINAE的underlying_type
+ */
 template <class _Tp, bool = is_enum<_Tp>::value>
 struct __sfinae_underlying_type
 {
@@ -4626,7 +4861,9 @@ typename __sfinae_underlying_type<_Tp>::__promoted_type
 __convert_to_integral(_Tp __val) { return __val; }
 
 #ifndef _LIBCPP_CXX03_LANG
-
+/**
+ * 有成员operator&运算符
+ */
 template <class _Tp>
 struct __has_operator_addressof_member_imp
 {
@@ -4638,7 +4875,9 @@ struct __has_operator_addressof_member_imp
 
     static const bool value = decltype(__test<_Tp>(0))::value;
 };
-
+/**
+ * 有非成员operator&运算符
+ */
 template <class _Tp>
 struct __has_operator_addressof_free_imp
 {
@@ -4650,7 +4889,9 @@ struct __has_operator_addressof_free_imp
 
     static const bool value = decltype(__test<_Tp>(0))::value;
 };
-
+/**
+ * 有operator&运算符
+ */
 template <class _Tp>
 struct __has_operator_addressof
     : public integral_constant<bool, __has_operator_addressof_member_imp<_Tp>::value
@@ -4663,7 +4904,9 @@ struct __has_operator_addressof
 
 #define __cpp_lib_void_t 201411
 template <class...> using void_t = void;
-
+/**
+ * 逻辑运算
+ */
 # ifndef _LIBCPP_HAS_NO_VARIADICS
 template <class... _Args>
 struct conjunction : __and_<_Args...> {};
