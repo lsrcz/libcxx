@@ -2423,7 +2423,6 @@ forward(typename remove_reference<_Tp>::type& __t) _NOEXCEPT
     return __t;
 }
 
-
 template <class _Tp>
 class __rv
 {

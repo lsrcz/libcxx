@@ -168,7 +168,11 @@ enum align_val_t { __zero = 0, __max = (size_t)-1 };
 #endif
 
 }  // std
-
+/**
+ * 注意下面的不是在std命名空间
+ * new_handler的类型为void (*)()
+ * 程序开始的时候为nullptr
+ */
 #if defined(_LIBCPP_CXX03_LANG)
 #define _THROW_BAD_ALLOC throw(std::bad_alloc)
 #else
@@ -219,7 +223,7 @@ inline _LIBCPP_INLINE_VISIBILITY void  operator delete[](void*, void*) _NOEXCEPT
 #endif // !_LIBCPP_ABI_MICROSOFT
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/// 直接使用默认new
 inline _LIBCPP_INLINE_VISIBILITY void *__allocate(size_t __size) {
 #ifdef _LIBCPP_HAS_NO_BUILTIN_OPERATOR_NEW_DELETE
   return ::operator new(__size);
@@ -227,7 +231,7 @@ inline _LIBCPP_INLINE_VISIBILITY void *__allocate(size_t __size) {
   return __builtin_operator_new(__size);
 #endif
 }
-
+/// 直接使用默认delete
 inline _LIBCPP_INLINE_VISIBILITY void __libcpp_deallocate(void *__ptr) {
 #ifdef _LIBCPP_HAS_NO_BUILTIN_OPERATOR_NEW_DELETE
   ::operator delete(__ptr);

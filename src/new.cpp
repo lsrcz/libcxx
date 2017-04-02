@@ -59,7 +59,9 @@ __throw_bad_alloc()
 // Implement all new and delete operators as weak definitions
 // in this shared library, so that they can be overridden by programs
 // that define non-weak copies of the functions.
-
+/**
+ * 使用malloc进行内存分配，如果没有new_handler 就直接抛出std::bad_alloc异常
+ */
 _LIBCPP_WEAK
 void *
 operator new(std::size_t size) _THROW_BAD_ALLOC
@@ -83,7 +85,9 @@ operator new(std::size_t size) _THROW_BAD_ALLOC
     }
     return p;
 }
-
+/**
+ * noexcept版本如果分配失败就返回空指针
+ */
 _LIBCPP_WEAK
 void*
 operator new(size_t size, const std::nothrow_t&) _NOEXCEPT
