@@ -13,7 +13,20 @@
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/**
+ * __split_buffer是一个线性存储的，允许push_front和push_back的容器
+ * 它维持元素位于储存区中间
+ * 刚刚构造的时候位于最前方
+ * 用作缓冲区
+ * 可以作为vector操作的工具类
+ * __dddddddddddd____
+ * ^ ^           ^   ^
+ * 1 2           3   4
+ * 1: __first_
+ * 2: __begin_
+ * 3: __end_
+ * 4: __end_cap_
+ */
 template <bool>
 class __split_buffer_common
 {
@@ -151,6 +164,9 @@ public:
     bool __invariants() const;
 
 private:
+    /**
+     * 如果__alloc()支持移动容器时移动则进行移动，否则不改变原有的分配器
+     */
     _LIBCPP_INLINE_VISIBILITY
     void __move_assign_alloc(__split_buffer& __c, true_type)
         _NOEXCEPT_(is_nothrow_move_assignable<allocator_type>::value)
@@ -162,7 +178,9 @@ private:
     void __move_assign_alloc(__split_buffer&, false_type) _NOEXCEPT
         {}
 };
-
+/**
+ * 检查当前的容器是否符合真个容器的指针管理的基本要求
+ */
 template <class _Tp, class _Allocator>
 bool
 __split_buffer<_Tp, _Allocator>::__invariants() const
@@ -224,7 +242,10 @@ __split_buffer<_Tp, _Allocator>::__construct_at_end(size_type __n, const_referen
         --__n;
     } while (__n > 0);
 }
-
+/**
+ * 在末尾处构造
+ * 如果空间不够，则先构建新的，进行移动再交换
+ */
 template <class _Tp, class _Allocator>
 template <class _InputIter>
 typename enable_if
@@ -303,7 +324,9 @@ __split_buffer<_Tp, _Allocator>::__destruct_at_end(pointer __new_last, true_type
 {
     __end_ = __new_last;
 }
-
+/**
+ * 从容量，开始位置以及分配器构建
+ */
 template <class _Tp, class _Allocator>
 __split_buffer<_Tp, _Allocator>::__split_buffer(size_type __cap, size_type __start, __alloc_rr& __a)
     : __end_cap_(nullptr, __a)
@@ -358,7 +381,11 @@ __split_buffer<_Tp, _Allocator>::__split_buffer(__split_buffer&& __c)
     __c.__end_ = nullptr;
     __c.__end_cap() = nullptr;
 }
-
+/**
+ * 如果两个分配器相同，则直接移动
+ * 如果不相同的话重新分配空间
+ * 使用move_iterator从_Ip获取c中的内容(对象级别的移动)
+ */
 template <class _Tp, class _Allocator>
 __split_buffer<_Tp, _Allocator>::__split_buffer(__split_buffer&& __c, const __alloc_rr& __a)
     : __end_cap_(__a)
@@ -384,7 +411,9 @@ __split_buffer<_Tp, _Allocator>::__split_buffer(__split_buffer&& __c, const __al
         __construct_at_end(_Ip(__c.begin()), _Ip(__c.end()));
     }
 }
-
+/**
+ * 只允许相同的分配器的__split_buffer进行赋值，因此不需要判断是否需要重新构造空间
+ */
 template <class _Tp, class _Allocator>
 __split_buffer<_Tp, _Allocator>&
 __split_buffer<_Tp, _Allocator>::operator=(__split_buffer&& __c)
@@ -398,6 +427,7 @@ __split_buffer<_Tp, _Allocator>::operator=(__split_buffer&& __c)
     __begin_ = __c.__begin_;
     __end_ = __c.__end_;
     __end_cap() = __c.__end_cap();
+    /// 如果分配器支持移动容器时进行移动，则将分配器移动
     __move_assign_alloc(__c,
         integral_constant<bool,
                           __alloc_traits::propagate_on_container_move_assignment::value>());
@@ -417,9 +447,16 @@ __split_buffer<_Tp, _Allocator>::swap(__split_buffer& __x)
     _VSTD::swap(__begin_, __x.__begin_);
     _VSTD::swap(__end_, __x.__end_);
     _VSTD::swap(__end_cap(), __x.__end_cap());
+    /// 如果可以交换则交换，否则不进行交换
+    /// 详见__swap_allocator实现
     __swap_allocator(__alloc(), __x.__alloc());
 }
-
+/**
+ * reserve函数，申请空间
+ * 如果__n比capacity()小则不进行任何操作
+ * copy and swap
+ * 使用move_iterator以及__construct_at_end
+ */
 template <class _Tp, class _Allocator>
 void
 __split_buffer<_Tp, _Allocator>::reserve(size_type __n)
@@ -435,7 +472,9 @@ __split_buffer<_Tp, _Allocator>::reserve(size_type __n)
         _VSTD::swap(__end_cap(), __t.__end_cap());
     }
 }
-
+/**
+ * 如果cap比size大的话就先构造再交换
+ */
 template <class _Tp, class _Allocator>
 void
 __split_buffer<_Tp, _Allocator>::shrink_to_fit() _NOEXCEPT
@@ -462,7 +501,13 @@ __split_buffer<_Tp, _Allocator>::shrink_to_fit() _NOEXCEPT
 #endif  // _LIBCPP_NO_EXCEPTIONS
     }
 }
-
+/**
+ * 如果__begin_指针和__first_指针相同
+ *     如果__end_指针和__end_cap()指针不同
+ *         向后移动0.5*剩余空间，再前面分配空间，至少移动一个
+ *     否则分配2倍的原空间，__begin_指向全部分配空间前四分之一的位置，也即所有新的成员位于新的空间的中心
+ * 之后在头部进行构造
+ */
 template <class _Tp, class _Allocator>
 void
 __split_buffer<_Tp, _Allocator>::push_front(const_reference __x)
@@ -525,7 +570,9 @@ __split_buffer<_Tp, _Allocator>::push_front(value_type&& __x)
 }
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
-
+/**
+ * 向前移动，类似
+ */
 template <class _Tp, class _Allocator>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -589,7 +636,9 @@ __split_buffer<_Tp, _Allocator>::push_back(value_type&& __x)
 }
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
-
+/**
+ * 构造而非拷贝或移动
+ */
 template <class _Tp, class _Allocator>
 template <class... _Args>
 void

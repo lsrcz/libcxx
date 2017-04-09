@@ -727,7 +727,9 @@ struct __less<_T1, const _T1>
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
     bool operator()(const _T1& __x, const _T1& __y) const {return __x < __y;}
 };
-
+/**
+ * 传入一个谓词，调用得到其否定
+ */
 template <class _Predicate>
 class __negate
 {
@@ -782,6 +784,7 @@ struct __debug_less
 #endif  // _LIBCPP_DEBUG
 
 // Precondition:  __x != 0
+/// x末尾0的个数，x = 0的时候结果未定义
 inline _LIBCPP_INLINE_VISIBILITY
 unsigned
 __ctz(unsigned __x)
@@ -804,6 +807,7 @@ __ctz(unsigned long long __x)
 }
 
 // Precondition:  __x != 0
+/// x前导0的个数，x = 0时结果未定义(注意参数的类型转换)
 inline _LIBCPP_INLINE_VISIBILITY
 unsigned
 __clz(unsigned __x)
@@ -830,7 +834,10 @@ inline _LIBCPP_INLINE_VISIBILITY int __pop_count(unsigned      long __x) {return
 inline _LIBCPP_INLINE_VISIBILITY int __pop_count(unsigned long long __x) {return __builtin_popcountll(__x);}
 
 // all_of
-
+/**
+ * 检查迭代器范围内是否均满足谓词__pred
+ * O(N)
+ */
 template <class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -843,7 +850,10 @@ all_of(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // any_of
-
+/**
+ * 检查迭代器范围内是否有满足谓词__pred的元素
+ * O(N)
+ */
 template <class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -856,7 +866,10 @@ any_of(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // none_of
-
+/**
+ * 检查迭代器范围内是否都不满足谓词__pred
+ * O(N)
+ */
 template <class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -869,7 +882,10 @@ none_of(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // for_each
-
+/**
+ * 对范围内的元素分别调用__f，返回__f
+ * O(N)
+ */
 template <class _InputIterator, class _Function>
 inline _LIBCPP_INLINE_VISIBILITY
 _Function
@@ -881,7 +897,10 @@ for_each(_InputIterator __first, _InputIterator __last, _Function __f)
 }
 
 // find
-
+/**
+ * 在范围内找等于__value_的元素，返回指向它的迭代器，如果不存在，返回尾后迭代器
+ * O(N)
+ */
 template <class _InputIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 _InputIterator
@@ -894,7 +913,10 @@ find(_InputIterator __first, _InputIterator __last, const _Tp& __value_)
 }
 
 // find_if
-
+/**
+ * 在范围内找满足__pred的元素，返回指向他的迭代器，如果不存在返回尾后迭代器
+ * O(N)
+ */
 template <class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 _InputIterator
@@ -907,7 +929,10 @@ find_if(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // find_if_not
-
+/**
+ * 在范围内找不满足__pred的元素，返回指向他的迭代器，如果不存在返回尾后迭代器
+ * O(N)
+ */
 template<class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 _InputIterator
@@ -920,13 +945,26 @@ find_if_not(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // find_end
-
+/**
+ * 找到范围内最后一个子序列，返回起始的迭代器，如果没有找到，则返回尾后迭代器
+ * O(N^2)
+ * ABCDDDABCD 找 ABC
+ *       ^返回
+ * ABCDDDABCD 找 ABCDE
+ *           ^返回
+ */
 template <class _BinaryPredicate, class _ForwardIterator1, class _ForwardIterator2>
 _ForwardIterator1
 __find_end(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
            _ForwardIterator2 __first2, _ForwardIterator2 __last2, _BinaryPredicate __pred,
            forward_iterator_tag, forward_iterator_tag)
 {
+    /**
+     * ForwardIter版本的find_end线性寻找，先找开头，找到可行的开头就向后进行模式匹配，如果不符合就继续
+     * 开始的时候答案设置为__last
+     * 每次找到的时候将答案修改为找到的位置
+     * 如果资源耗竭，返回答案(可能为__last)
+     */
     // modeled after search algorithm
     _ForwardIterator1 __r = __last1;  // __last1 is the "default" answer
     if (__first2 == __last2)
@@ -969,6 +1007,9 @@ __find_end(_BidirectionalIterator1 __first1, _BidirectionalIterator1 __last1,
            _BidirectionalIterator2 __first2, _BidirectionalIterator2 __last2, _BinaryPredicate __pred,
            bidirectional_iterator_tag, bidirectional_iterator_tag)
 {
+    /**
+     * 双向迭代器版本倒着找第一个
+     */
     // modeled after search algorithm (in reverse)
     if (__first2 == __last2)
         return __last1;  // Everything matches an empty sequence
@@ -1008,6 +1049,9 @@ __find_end(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _BinaryPredicate __pred,
            random_access_iterator_tag, random_access_iterator_tag)
 {
+    /**
+     * 依然是线性查找但是利用了子串长度，略微减少要查找的区域
+     */
     // Take advantage of knowing source and pattern lengths.  Stop short when source is smaller than pattern
     typename iterator_traits<_RandomAccessIterator2>::difference_type __len2 = __last2 - __first2;
     if (__len2 == 0)
@@ -1042,7 +1086,9 @@ __find_end(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
         }
     }
 }
-
+/**
+ * 参数中有一个二元谓词，如果没有的话则使用__equal_to
+ */
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 inline _LIBCPP_INLINE_VISIBILITY
 _ForwardIterator1
@@ -1067,7 +1113,10 @@ find_end(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
 }
 
 // find_first_of
-
+/**
+ * 在[__first1, __last1)区间中找第一个存在于[__first2, __last2)的元素，返回其迭代器
+ * O(NM)
+ */
 template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 _LIBCPP_CONSTEXPR_AFTER_CXX11 _ForwardIterator1
 __find_first_of_ce(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
@@ -1102,7 +1151,11 @@ find_first_of(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
 }
 
 // adjacent_find
-
+/**
+ * 找到第一组相邻的两个元素满足_pred的条件，返回指向其中第一个元素的迭代器
+ * 很容易阅读
+ * O(N)
+ */
 template <class _ForwardIterator, class _BinaryPredicate>
 inline _LIBCPP_INLINE_VISIBILITY
 _ForwardIterator
@@ -1131,7 +1184,10 @@ adjacent_find(_ForwardIterator __first, _ForwardIterator __last)
 }
 
 // count
-
+/**
+ * 数总共有几个和__value_相等的元素
+ * O(N)
+ */
 template <class _InputIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 typename iterator_traits<_InputIterator>::difference_type
@@ -1145,7 +1201,10 @@ count(_InputIterator __first, _InputIterator __last, const _Tp& __value_)
 }
 
 // count_if
-
+/**
+ * 数总共有几个满足谓词__pred的元素
+ * O(N)
+ */
 template <class _InputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 typename iterator_traits<_InputIterator>::difference_type
@@ -1159,7 +1218,10 @@ count_if(_InputIterator __first, _InputIterator __last, _Predicate __pred)
 }
 
 // mismatch
-
+/**
+ * 找到第一个两个序列不同的位置
+ * O(N)
+ */
 template <class _InputIterator1, class _InputIterator2, class _BinaryPredicate>
 inline _LIBCPP_INLINE_VISIBILITY
 pair<_InputIterator1, _InputIterator2>
@@ -1209,7 +1271,11 @@ mismatch(_InputIterator1 __first1, _InputIterator1 __last1,
 #endif
 
 // equal
-
+/**
+ * 判断两个序列是否相等或都满足__pred
+ * 只接受三个迭代器的版本逐个比对，当第一组迭代器到末尾时即为真(开头的子串)
+ * 接受四个迭代器的版本如果区间长度不同则为false，RandomIter首先比对，其他的迭代器类型比对完所有元素之后比对两个的开头和结尾，如果都相同则两个序列相同
+ */
 template <class _InputIterator1, class _InputIterator2, class _BinaryPredicate>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -1286,7 +1352,13 @@ equal(_InputIterator1 __first1, _InputIterator1 __last1,
 #endif
 
 // is_permutation
-
+/**
+ * 判断两个范围是否互相为一个排列
+ * 通常为O(N^2)，如果两个初始状态相等则O(N)
+ * 如果是RandIter，且两个区间长度不等则不进行任何判断
+ * 通过数序列一中的元素和序列二中的元素是否数量相同
+ * 跳过已经数过的元素
+ */
 template<class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
 bool
 is_permutation(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
@@ -1343,7 +1415,9 @@ is_permutation(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
     typedef typename iterator_traits<_ForwardIterator2>::value_type __v2;
     return _VSTD::is_permutation(__first1, __last1, __first2, __equal_to<__v1, __v2>());
 }
-
+/**
+ * 如果长度不同返回false
+ */
 #if _LIBCPP_STD_VER > 11
 template<class _BinaryPredicate, class _ForwardIterator1, class _ForwardIterator2>
 bool
@@ -1395,7 +1469,9 @@ __next_iter:;
     }
     return true;
 }
-
+/**
+ * 先判断长度是否相同
+ */
 template<class _BinaryPredicate, class _RandomAccessIterator1, class _RandomAccessIterator2>
 bool
 __is_permutation(_RandomAccessIterator1 __first1, _RandomAccessIterator2 __last1,
@@ -1439,7 +1515,11 @@ is_permutation(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
 #endif
 
 // search
-
+/**
+ * 在first1和last1指定的范围内查找first2和last2指定的范围中的子串
+ * 线性查找
+ * 最多为O(SN)
+ */
 template <class _BinaryPredicate, class _ForwardIterator1, class _ForwardIterator2>
 pair<_ForwardIterator1, _ForwardIterator1>
 __search(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
@@ -1547,7 +1627,9 @@ search(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
 }
 
 // search_n
-
+/**
+ * 找恰好为n个某元素的子序列
+ */
 template <class _BinaryPredicate, class _ForwardIterator, class _Size, class _Tp>
 _ForwardIterator
 __search_n(_ForwardIterator __first, _ForwardIterator __last,
@@ -1647,6 +1729,9 @@ search_n(_ForwardIterator __first, _ForwardIterator __last, _Size __count, const
 }
 
 // copy
+/**
+ * 获取wrap_iter中的裸指针
+ */
 template <class _Iter>
 inline _LIBCPP_INLINE_VISIBILITY
 _Iter
@@ -1696,7 +1781,10 @@ __unwrap_iter(__wrap_iter<_Tp*> __i)
 }
 
 #endif  // _LIBCPP_DEBUG_LEVEL < 2
-
+/**
+ * 如果是wrap_iter<Tp*>或move_iter<Tp*>,且满足trivially_copy_assignable，即没有移动操作，不用考虑move_iterator是被copy还是move，直接移动内存即可
+ * 则使用memmove
+ */
 template <class _InputIterator, class _OutputIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1732,7 +1820,10 @@ copy(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
 }
 
 // copy_backward
-
+/**
+ * 反向拷贝
+ * 需满足双向迭代器
+ */
 template <class _BidirectionalIterator, class _OutputIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1774,7 +1865,9 @@ copy_backward(_BidirectionalIterator1 __first, _BidirectionalIterator1 __last,
 }
 
 // copy_if
-
+/**
+ * 只拷贝满足条件的元素
+ */
 template<class _InputIterator, class _OutputIterator, class _Predicate>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1793,7 +1886,12 @@ copy_if(_InputIterator __first, _InputIterator __last,
 }
 
 // copy_n
-
+/**
+ * 如果不是random_access_iterator
+ * 则逐个拷贝
+ * 如果是
+ * 调用copy
+ */
 template<class _InputIterator, class _Size, class _OutputIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 typename enable_if
@@ -1835,7 +1933,9 @@ copy_n(_InputIterator __first, _Size __orig_n, _OutputIterator __result)
 }
 
 // move
-
+/**
+ * 类似copy
+ */
 template <class _InputIterator, class _OutputIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1915,7 +2015,9 @@ move_backward(_BidirectionalIterator1 __first, _BidirectionalIterator1 __last,
 // moved to <type_traits> for better swap / noexcept support
 
 // transform
-
+/**
+ * 使用单目运算符或双目运算符，使用双目的需要额外提供一个迭代器
+ */
 template <class _InputIterator, class _OutputIterator, class _UnaryOperation>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1938,7 +2040,9 @@ transform(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __f
 }
 
 // replace
-
+/**
+ * 将所有等于old_value的替换为new_value
+ */
 template <class _ForwardIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -1950,7 +2054,9 @@ replace(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __old_valu
 }
 
 // replace_if
-
+/**
+ * 替换满足条件的
+ */
 template <class _ForwardIterator, class _Predicate, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -1962,7 +2068,9 @@ replace_if(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pred,
 }
 
 // replace_copy
-
+/**
+ * 将替换后的拷贝到新的位置
+ */
 template <class _InputIterator, class _OutputIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -1994,7 +2102,9 @@ replace_copy_if(_InputIterator __first, _InputIterator __last, _OutputIterator _
 }
 
 // fill_n
-
+/**
+ * 给定区间填充，拷贝赋值
+ */
 template <class _OutputIterator, class _Size, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -2004,7 +2114,10 @@ __fill_n(_OutputIterator __first, _Size __n, const _Tp& __value_)
         *__first = __value_;
     return __first;
 }
-
+/**
+ * 如果Tp和Up都是一个字节的数值类型，而且_Tp不是bool类型
+ * 则直接memset
+ */
 template <class _Tp, class _Size, class _Up>
 inline _LIBCPP_INLINE_VISIBILITY
 typename enable_if
@@ -2030,7 +2143,10 @@ fill_n(_OutputIterator __first, _Size __n, const _Tp& __value_)
 }
 
 // fill
-
+/**
+ * 填充迭代器之间的部分
+ * RandIter使用fill_n
+ */
 template <class _ForwardIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -2057,7 +2173,9 @@ fill(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_)
 }
 
 // generate
-
+/**
+ * 使用生成器生成序列
+ */
 template <class _ForwardIterator, class _Generator>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -2082,7 +2200,26 @@ generate_n(_OutputIterator __first, _Size __orig_n, _Generator __gen)
 }
 
 // remove
-
+/**
+ * 将所有不等于__value_的值向前移动，remove_if类似
+ * ABCDEDF
+ *    ^
+ *    f/i
+ * ABCDEDF
+ *    ^^
+ *    fi
+ * ABCE.DF
+ *     ^^
+ *     fi
+ * ABCE.DF
+ *     ^ ^
+ *     f i
+ * ABCEFD.
+ *      ^ ^
+ *      f i
+ *
+ * 这时候便可以使用erase将之后的元素擦除
+ */
 template <class _ForwardIterator, class _Tp>
 _ForwardIterator
 remove(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_)
@@ -2127,7 +2264,9 @@ remove_if(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pred)
 }
 
 // remove_copy
-
+/**
+ * 拷贝到__result中，易理解
+ */
 template <class _InputIterator, class _OutputIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
@@ -2163,7 +2302,17 @@ remove_copy_if(_InputIterator __first, _InputIterator __last, _OutputIterator __
 }
 
 // unique
-
+/**
+ * 每次判断当前走到的和之后的一位，如果不相同就进行移动
+ * ... a  a  b  b ...
+ *     f  i
+ * ... a  a  b  b ...
+ *     f     i        //!pred
+ * ... a  b  .  b ...
+ *        f     i
+ * ... a  b  .  b ...
+ *        f       i
+ */
 template <class _ForwardIterator, class _BinaryPredicate>
 _ForwardIterator
 unique(_ForwardIterator __first, _ForwardIterator __last, _BinaryPredicate __pred)
@@ -2193,7 +2342,9 @@ unique(_ForwardIterator __first, _ForwardIterator __last)
 }
 
 // unique_copy
-
+/**
+ * 如果输入是input_iterator，输出为output_iterator，拷贝的时候利用一个临时量中的值
+ */
 template <class _BinaryPredicate, class _InputIterator, class _OutputIterator>
 _OutputIterator
 __unique_copy(_InputIterator __first, _InputIterator __last, _OutputIterator __result, _BinaryPredicate __pred,
@@ -2216,7 +2367,10 @@ __unique_copy(_InputIterator __first, _InputIterator __last, _OutputIterator __r
     }
     return __result;
 }
-
+/**
+ * 如果输入是forward，输出为output
+ * 不拷贝到临时量中，直接使用一个迭代器保存上次的值
+ */
 template <class _BinaryPredicate, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
 __unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _BinaryPredicate __pred,
@@ -2239,7 +2393,9 @@ __unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator
     }
     return __result;
 }
-
+/**
+ * 类似unique
+ */
 template <class _BinaryPredicate, class _InputIterator, class _ForwardIterator>
 _ForwardIterator
 __unique_copy(_InputIterator __first, _InputIterator __last, _ForwardIterator __result, _BinaryPredicate __pred,
@@ -2277,7 +2433,11 @@ unique_copy(_InputIterator __first, _InputIterator __last, _OutputIterator __res
 }
 
 // reverse
-
+/**
+ * reverse要求双向迭代器或者随机访问迭代器
+ * 如果是双向迭代器，判断两次是否相等
+ * 如果是随机访问迭代器，直接使用小于运算符
+ */
 template <class _BidirectionalIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -2323,7 +2483,9 @@ reverse_copy(_BidirectionalIterator __first, _BidirectionalIterator __last, _Out
 }
 
 // rotate
-
+/**
+ * 向左旋转一位，先将第一位移动到临时量中，再将后面的都向前移动，之后将临时量移动到最后一位，返回最后一位
+ */
 template <class _ForwardIterator>
 _ForwardIterator
 __rotate_left(_ForwardIterator __first, _ForwardIterator __last)
@@ -2334,7 +2496,9 @@ __rotate_left(_ForwardIterator __first, _ForwardIterator __last)
     *__lm1 = _VSTD::move(__tmp);
     return __lm1;
 }
-
+/**
+ * 将最后一位移动到临时量中，再将从第一位到倒数第二位向后移动，最后一位移动到第一位，返回第二位
+ */
 template <class _BidirectionalIterator>
 _BidirectionalIterator
 __rotate_right(_BidirectionalIterator __first, _BidirectionalIterator __last)
@@ -2346,22 +2510,48 @@ __rotate_right(_BidirectionalIterator __first, _BidirectionalIterator __last)
     *__first = _VSTD::move(__tmp);
     return __fp1;
 }
-
+/**
+ * __first不会到__middle的情况
+ * 123456789
+ * ^f   ^m  ^e
+ * 623451789
+ *  ^   ^^  ^
+ *  f   mi  e
+ * 678951234
+ *     ^^   ^
+ *     fm   ie
+ *
+ * if语句块
+ * 678951234
+ *     ^^   ^
+ *     fm(i)e
+ * 678915234
+ *      ^^  ^
+ *   (m)fi  e(之后m会被赋值为i的位置，其实就是使用之前的方法，如果i到末尾的时候f并没有到middle就再来一次
+ *
+ *
+ * 第一轮循环被单独展开的作用的作用是找到返回值位置，返回的为指向rotate之前第一个元素的迭代器
+ */
 template <class _ForwardIterator>
 _ForwardIterator
 __rotate_forward(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last)
 {
     _ForwardIterator __i = __middle;
+    /// 将后半段调到最前面的部分
     while (true)
     {
+        /// 将首元素交换到中间元素处
         swap(*__first, *__i);
+        /// 自增__i和__first(使得每次交换后一位)
         ++__first;
         if (++__i == __last)
             break;
+        /// 将如果__first到了__middle的位置上，就将__middle移动到__i的位置
         if (__first == __middle)
             __middle = __i;
     }
     _ForwardIterator __r = __first;
+    /// 如果__first != __middle，即还有需要进行调整的元素
     if (__first != __middle)
     {
         __i = __middle;
@@ -2381,7 +2571,9 @@ __rotate_forward(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIt
     }
     return __r;
 }
-
+/**
+ * 辗转相除法求最小公倍数
+ */
 template<typename _Integral>
 inline _LIBCPP_INLINE_VISIBILITY
 _Integral
@@ -2395,7 +2587,25 @@ __algo_gcd(_Integral __x, _Integral __y)
     } while (__y);
     return __x;
 }
-
+/**
+ * 首先计算出前半段和后半段分别有多少元素
+ * 如果两者相等，则直接区间逐一交换即可，n/2次操作
+ *
+ * 如果二者不等，则进行多次环状交换
+ * 因为gcd(a, b) * lcm(a, b) == |a * b|
+ * 一次循环，跨过lcm(a, b)个元素后可回到原点
+ *
+ * 相当于把n个元素划分成了gcd(a, b)组，一次轮换使得一组元素交换到下一个位置
+ *
+ * 例如
+ * ABCDEFHIJK
+ * ^   ^     ^
+ * b   m     e(m - b == 4, e - m == 6, gcd == 2)
+ * 第一轮轮换从b + (gcd - 1)开始，首先存储下*(b + (gcd - 1))位置作为临时量，将之后的元素分别向前移动，
+ * 这个过程中维护两个指针，每次循环开始的时候后指针指向目标位置，前指针指向源位置
+ * 当前指针回到初始临时量所在的位置的时候，意味着本轮循环结束，将临时量写入后指针位置
+ * 然后进行下一轮循环
+ */
 template<typename _RandomAccessIterator>
 _RandomAccessIterator
 __rotate_gcd(_RandomAccessIterator __first, _RandomAccessIterator __middle, _RandomAccessIterator __last)
@@ -2505,7 +2715,9 @@ rotate_copy(_ForwardIterator __first, _ForwardIterator __middle, _ForwardIterato
 }
 
 // min_element
-
+/**
+ * 最大最小值
+ */
 template <class _ForwardIterator, class _Compare>
 inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
 _ForwardIterator
@@ -2632,7 +2844,9 @@ max(initializer_list<_Tp> __t)
 }
 
 #endif  // _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
-
+/**
+ * 三者中间的元素
+ */
 #if _LIBCPP_STD_VER > 14
 // clamp
 template<class _Tp, class _Compare>
@@ -2655,7 +2869,10 @@ clamp(const _Tp& __v, const _Tp& __lo, const _Tp& __hi)
 #endif
 
 // minmax_element
-
+/**
+ * 如果区间为空或区间为1，返回的pair中两个元素均为__first
+ * 否则返回的pair的第一个元素为最早出现的满足条件的元素，第二个为最后出现的不满足条件的元素(只有当两个相同的时候不属于满足__comp的情况的时候满足)
+ */
 template <class _ForwardIterator, class _Compare>
 _LIBCPP_CONSTEXPR_AFTER_CXX11
 std::pair<_ForwardIterator, _ForwardIterator>
@@ -2784,7 +3001,9 @@ minmax(initializer_list<_Tp> __t)
 // random_shuffle
 
 // __independent_bits_engine
-
+/**
+ * 编译期计算以2为底的对数
+ */
 template <unsigned long long _Xp, size_t _Rp>
 struct __log2_imp
 {
@@ -2797,7 +3016,9 @@ struct __log2_imp<_Xp, 0>
 {
     static const size_t value = 0;
 };
-
+/**
+ * 0的对数为能容纳的位数即sizeof(_UI)
+ */
 template <size_t _Rp>
 struct __log2_imp<0, _Rp>
 {
@@ -2820,6 +3041,9 @@ public:
 
 private:
     typedef typename _Engine::result_type _Engine_result_type;
+    /**
+     * 将输出的类型设置为随机数引擎和模板参数中较大的一个
+     */
     typedef typename conditional
         <
             sizeof(_Engine_result_type) <= sizeof(result_type),
@@ -2828,6 +3052,7 @@ private:
         >::type _Working_result_type;
 
     _Engine& __e_;
+
     size_t __w_;
     size_t __w0_;
     size_t __n_;
@@ -2836,7 +3061,9 @@ private:
     _Working_result_type __y1_;
     _Engine_result_type __mask0_;
     _Engine_result_type __mask1_;
-
+/**
+ * _Rp是产生的随机数的区间长度
+ */
 #ifdef _LIBCPP_HAS_NO_CONSTEXPR
     static const _Working_result_type _Rp = _Engine::_Max - _Engine::_Min
                                           + _Working_result_type(1);
@@ -2844,7 +3071,13 @@ private:
     static _LIBCPP_CONSTEXPR const _Working_result_type _Rp = _Engine::max() - _Engine::min()
                                                       + _Working_result_type(1);
 #endif
+    /**
+     * __m是_Rp的以2为底的对数
+     */
     static _LIBCPP_CONSTEXPR const size_t __m = __log2<_Working_result_type, _Rp>::value;
+    /**
+     * _WDt是当前使用的working result type的极限，_EDt是随机数引擎的类型的极限
+     */
     static _LIBCPP_CONSTEXPR const size_t _WDt = numeric_limits<_Working_result_type>::digits;
     static _LIBCPP_CONSTEXPR const size_t _EDt = numeric_limits<_Engine_result_type>::digits;
 
@@ -3193,7 +3426,9 @@ template<class _RandomAccessIterator, class _UniformRandomNumberGenerator>
         }
     }
 }
-
+/**
+ * 逐一判断
+ */
 template <class _InputIterator, class _Predicate>
 bool
 is_partitioned(_InputIterator __first, _InputIterator __last, _Predicate __pred)
@@ -3216,6 +3451,7 @@ template <class _Predicate, class _ForwardIterator>
 _ForwardIterator
 __partition(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pred, forward_iterator_tag)
 {
+    /// 先找到第一个不满足__pred的元素，如果没有找到返回尾后迭代器
     while (true)
     {
         if (__first == __last)
@@ -3224,6 +3460,7 @@ __partition(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pred
             break;
         ++__first;
     }
+    /// 将所有满足的调换到前面
     for (_ForwardIterator __p = __first; ++__p != __last;)
     {
         if (__pred(*__p))
@@ -3242,6 +3479,7 @@ __partition(_BidirectionalIterator __first, _BidirectionalIterator __last, _Pred
 {
     while (true)
     {
+        /// 双向查找，不需要维护两个迭代器共遍历两轮
         while (true)
         {
             if (__first == __last)
@@ -3295,7 +3533,9 @@ partition_copy(_InputIterator __first, _InputIterator __last,
 }
 
 // partition_point
-
+/**
+ * 二分查找中间点，O(log(N))
+ */
 template<class _ForwardIterator, class _Predicate>
 _ForwardIterator
 partition_point(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pred)
@@ -3339,6 +3579,9 @@ __stable_partition(_ForwardIterator __first, _ForwardIterator __last, _Predicate
         }
         return __first;
     }
+    /**
+     * 如果空间足够就把所有的false的元素移动到临时缓存中，然后移动回来
+     */
     if (__len <= __p.second)
     {   // The buffer is big enough to use
         typedef typename iterator_traits<_ForwardIterator>::value_type value_type;
@@ -3373,6 +3616,10 @@ __stable_partition(_ForwardIterator __first, _ForwardIterator __last, _Predicate
         // __h destructs moved-from values out of the temp buffer, but doesn't deallocate buffer
         return __first;
     }
+    /**
+     * 空间不够的话就原位进行
+     * 分治法，先分成两部分，两部分分别分好，然后再使用rotate进行旋转
+     */
     // Else not enough buffer, do in place
     // __len >= 3
     _ForwardIterator __m = __first;
@@ -3448,6 +3695,7 @@ _BidirectionalIterator
 __stable_partition(_BidirectionalIterator __first, _BidirectionalIterator __last, _Predicate __pred,
                    _Distance __len, _Pair __p, bidirectional_iterator_tag __bit)
 {
+    /// 这里使用的空间不是左闭右开区间，而是闭区间，__len = __last - __first + 1
     // *__first is known to be false
     // *__last is known to be true
     // __len >= 2
@@ -3469,6 +3717,7 @@ __stable_partition(_BidirectionalIterator __first, _BidirectionalIterator __last
         swap(*__first, *__m);
         return __m;
     }
+    /// 空间足够的时候和使用单向迭代器的过程几乎相同
     if (__len <= __p.second)
     {   // The buffer is big enough to use
         typedef typename iterator_traits<_BidirectionalIterator>::value_type value_type;
@@ -3505,6 +3754,7 @@ __stable_partition(_BidirectionalIterator __first, _BidirectionalIterator __last
         // __h destructs moved-from values out of the temp buffer, but doesn't deallocate buffer
         return __first;
     }
+    /// 使用双向迭代器的话会跳过开头和结尾的已满足元素
     // Else not enough buffer, do in place
     // __len >= 4
     _BidirectionalIterator __m = __first;
@@ -3618,7 +3868,9 @@ is_sorted_until(_ForwardIterator __first, _ForwardIterator __last, _Compare __co
     }
     return __last;
 }
-
+/**
+ * 逐个比对
+ */
 template<class _ForwardIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 _ForwardIterator
@@ -3628,7 +3880,10 @@ is_sorted_until(_ForwardIterator __first, _ForwardIterator __last)
 }
 
 // is_sorted
-
+/**
+ * until last
+ * 逐个比对到结尾
+ */
 template <class _ForwardIterator, class _Compare>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -3648,7 +3903,7 @@ is_sorted(_ForwardIterator __first, _ForwardIterator __last)
 // sort
 
 // stable, 2-3 compares, 0-2 swaps
-
+/// 三个元素手动展开，稳定排序，返回交换次数
 template <class _Compare, class _ForwardIterator>
 unsigned
 __sort3(_ForwardIterator __x, _ForwardIterator __y, _ForwardIterator __z, _Compare __c)
@@ -3685,7 +3940,7 @@ __sort3(_ForwardIterator __x, _ForwardIterator __y, _ForwardIterator __z, _Compa
 }                                  // x <= y && y <= z
 
 // stable, 3-6 compares, 0-5 swaps
-
+/// 四个元素的时候先排序前三个，然后最后一个向前插入排序，返回一共交换的次数
 template <class _Compare, class _ForwardIterator>
 unsigned
 __sort4(_ForwardIterator __x1, _ForwardIterator __x2, _ForwardIterator __x3,
@@ -3711,7 +3966,7 @@ __sort4(_ForwardIterator __x1, _ForwardIterator __x2, _ForwardIterator __x3,
 }
 
 // stable, 4-10 compares, 0-9 swaps
-
+/// 先排前四个，最后一个向前插入排序，返回一共交换的次数
 template <class _Compare, class _ForwardIterator>
 unsigned
 __sort5(_ForwardIterator __x1, _ForwardIterator __x2, _ForwardIterator __x3,
@@ -3740,7 +3995,7 @@ __sort5(_ForwardIterator __x1, _ForwardIterator __x2, _ForwardIterator __x3,
     }
     return __r;
 }
-
+/// 选择排序
 // Assumes size > 0
 template <class _Compare, class _BirdirectionalIterator>
 void
@@ -3756,7 +4011,7 @@ __selection_sort(_BirdirectionalIterator __first, _BirdirectionalIterator __last
             swap(*__first, *__i);
     }
 }
-
+/// 插入排序
 template <class _Compare, class _BirdirectionalIterator>
 void
 __insertion_sort(_BirdirectionalIterator __first, _BirdirectionalIterator __last, _Compare __comp)
@@ -3775,7 +4030,7 @@ __insertion_sort(_BirdirectionalIterator __first, _BirdirectionalIterator __last
         }
     }
 }
-
+/// 随机迭代器使用这个版本的插入排序
 template <class _Compare, class _RandomAccessIterator>
 void
 __insertion_sort_3(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -3800,7 +4055,7 @@ __insertion_sort_3(_RandomAccessIterator __first, _RandomAccessIterator __last, 
         __j = __i;
     }
 }
-
+/// 最多排序8(11)个元素超过后返回是否已经排序完成
 template <class _Compare, class _RandomAccessIterator>
 bool
 __insertion_sort_incomplete(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -3849,7 +4104,7 @@ __insertion_sort_incomplete(_RandomAccessIterator __first, _RandomAccessIterator
     }
     return true;
 }
-
+/// 排序并移动
 template <class _Compare, class _BirdirectionalIterator>
 void
 __insertion_sort_move(_BirdirectionalIterator __first1, _BirdirectionalIterator __last1,
@@ -3885,6 +4140,45 @@ __insertion_sort_move(_BirdirectionalIterator __first1, _BirdirectionalIterator 
     }
 }
 
+
+/**
+ * 1. 0~5个元素直接插入排序(展开的)
+ *    若小于__limit个元素插入排序
+ *
+ * 2. 取样: 大于1000个元素取5个，小于1000个元素取3个，进行排序
+ *    排序后满足首元素小于中间元素小于最大元素
+ *
+ * 3. (如果首元素==中间元素)
+ *    一次划分: __i首元素，__m中间元素，__j末元素
+ *
+ *    __j自减循环至__i
+ *    cond 1. 如果__j小于__m，将__j和__i交换(post: __i < __m， __j指向需要继续划分的区域之后)
+ *    cond 2. 如果__j循环至__i，这意味着首元素等于中间元素而中间元素大于等于其他所有元素
+ *        __i取__i + 1, __j取__last
+ *        如果 *__first == *(__last-1)
+ *            __i循环自增
+ *            cond 1: *__first >= *__i(!__comp)，交换*__i和*__j，__i自增，返回(抛去__i及之前的相同的元素并且达到*__i < *__j的状态)，跳出__i自增循环
+ *            cond 2: __i == __j， 即i遍历了所有元素没有找到不等于首元素(中间元素的)，即区间内都是常数，已经排好序可以跳出排序函数
+ *
+ *        (此时状态为[__first, __i) == *__first and *__first < [__j, __last))(此时__j == __last故__j是单独一个元素)
+ *        如果__i == __j即所有元素(除__j小于__i且已经被换到前面)都相等则跳出函数
+ *
+ *        否则将所有等于__first的元素交换到前半段，其余交换到后半段(其余均大于__first)故可认为前半段已经排序完成，尾递归调用sort排序后半段
+ *
+ * 4. (pre: 3.cond 1, __i < __m且__j指向需要继续划分的区域之后，且__m <= __lm1)
+ *    (post: 划分为[__first, __i) < *__m and *__m <= [__i, __last))
+ *    __i自增跳过所有小于__m的元素，__j自减跳过所有大于等于__m的元素
+ *    如果__i > __j即已经完成划分
+ *    如果__i == __m(此时__m已经和__j进行了交换)，因此令__m = __j跟随过去，循环下去
+ *
+ * 5. (pre: [__first, __i) < *__m and *__m <= [__i, __last))
+ *    交换__i和__m内容，达到[__first, __i) < *__i and *__i <= [__i, __last)
+ *
+ * 6. (conditional : 之前的过程中未进行过交换)
+ *    测试插入排序是否比较快
+ *
+ * 7. 将两个子数组进行排序，短的数组递归，长的数组进行尾递归
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -3898,6 +4192,7 @@ __sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __c
     {
     __restart:
         difference_type __len = __last - __first;
+        /// 5个之内直接使用__sortn
         switch (__len)
         {
         case 0:
@@ -3917,6 +4212,7 @@ __sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __c
             _VSTD::__sort5<_Compare>(__first, __first+1, __first+2, __first+3, --__last, __comp);
             return;
         }
+        /// 如果比__limit大(当value_type可以平凡拷贝的时候为30， 否则为6)， 则使用插入排序
         if (__len <= __limit)
         {
             _VSTD::__insertion_sort_3<_Compare>(__first, __last, __comp);
@@ -3926,6 +4222,9 @@ __sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __c
         _RandomAccessIterator __m = __first;
         _RandomAccessIterator __lm1 = __last;
         --__lm1;
+        /**
+         * 这里使用__delta的作用是多取样求中值降低因为输入因素导致划分恶化的可能性
+         */
         unsigned __n_swaps;
         {
         difference_type __delta;
@@ -4169,7 +4468,10 @@ _LIBCPP_EXTERN_TEMPLATE(_LIBCPP_FUNC_VIS unsigned __sort5<__less<long double>&, 
 #endif  // _LIBCPP_MSVC
 
 // lower_bound
-
+/**
+ * 返回第一个不小于value的元素的迭代器(第一个不满足__comp的)
+ * 二分查找
+ */
 template <class _Compare, class _ForwardIterator, class _Tp>
 _ForwardIterator
 __lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_, _Compare __comp)
@@ -4217,7 +4519,9 @@ lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __valu
 }
 
 // upper_bound
-
+/**
+ * 第一个大于的元素，二分查找，使用__comp(value, *iter)
+ */
 template <class _Compare, class _ForwardIterator, class _Tp>
 _ForwardIterator
 __upper_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_, _Compare __comp)
@@ -4265,7 +4569,9 @@ upper_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __valu
 }
 
 // equal_range
-
+/**
+ * 二分查找，找到后调用__lower_bound和__upper_bound
+ */
 template <class _Compare, class _ForwardIterator, class _Tp>
 pair<_ForwardIterator, _ForwardIterator>
 __equal_range(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_, _Compare __comp)
@@ -4325,7 +4631,9 @@ equal_range(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __valu
 }
 
 // binary_search
-
+/**
+ * 调用lower_bound，如果找到的元素不是末尾而且该value不小于元素
+ */
 template <class _Compare, class _ForwardIterator, class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -4360,7 +4668,9 @@ binary_search(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __va
 }
 
 // merge
-
+/**
+ * 逐个拷贝
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 _OutputIterator
 __merge(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -4412,7 +4722,11 @@ merge(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // inplace_merge
-
+/**
+ * 前一半在缓冲区中，后一半在原位置
+ * 如果使用__half_inplace_merge(__buff, __p, __middle, __last, __first, __comp)调用
+ * 前半段用完后位置不须更多操作，次序已经完全正确，后半段用完后将前半段拷贝过去
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2,
           class _OutputIterator>
 void __half_inplace_merge(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -4450,6 +4764,7 @@ __buffered_inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator 
 {
     typedef typename iterator_traits<_BidirectionalIterator>::value_type value_type;
     __destruct_n __d(0);
+    /// 前半段短的话将前半段放进缓冲区，后半段短的话使用reverse_iter得到完全相同的调用方式
     unique_ptr<value_type, __destruct_n&> __h2(__buff, __d);
     if (__len1 <= __len2)
     {
@@ -4487,6 +4802,7 @@ __inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle,
         if (__len1 <= __buff_size || __len2 <= __buff_size)
             return __buffered_inplace_merge<_Compare>
                    (__first, __middle, __last, __comp, __len1, __len2, __buff);
+        /// 见下面注释，首先减小问题规模
         // shrink [__first, __middle) as much as possible (with no moves), returning if it shrinks to 0
         for (; true; ++__first, (void) --__len1)
         {
@@ -4495,6 +4811,9 @@ __inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle,
             if (__comp(*__middle, *__first))
                 break;
         }
+        /**
+         * 将问题划分为两个
+         */
         // __first < __middle < __last
         // *__first > *__middle
         // partition [__first, __m1) [__m1, __middle) [__middle, __m2) [__m2, __last) such that
@@ -4635,7 +4954,7 @@ __merge_move_construct(_InputIterator1 __first1, _InputIterator1 __last1,
         }
     }
 }
-
+/// 在原数组位置移动
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 void
 __merge_move_assign(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -4741,6 +5060,7 @@ __stable_sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Comp
             swap(*__first, *__last);
         return;
     }
+    /// 插入排序是稳定的
     if (__len <= static_cast<difference_type>(__stable_sort_switch<value_type>::value))
     {
         __insertion_sort<_Compare>(__first, __last, __comp);
@@ -4752,6 +5072,7 @@ __stable_sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Comp
     {
         __destruct_n __d(0);
         unique_ptr<value_type, __destruct_n&> __h2(__buff, __d);
+        /// 归并排序
         __stable_sort_move<_Compare>(__first, __m, __comp, __l2, __buff);
         __d.__set(__l2, (value_type*)0);
         __stable_sort_move<_Compare>(__m, __last, __comp, __len - __l2, __buff + __l2);
@@ -4764,6 +5085,7 @@ __stable_sort(_RandomAccessIterator __first, _RandomAccessIterator __last, _Comp
 //                           __first, __comp);
         return;
     }
+    /// 如果缓冲区不够用的话，就递归调用自己，然后用__inplace_merge(效率低于使用__merge_move_assign)
     __stable_sort<_Compare>(__first, __m, __comp, __l2, __buff, __buff_size);
     __stable_sort<_Compare>(__m, __last, __comp, __len - __l2, __buff, __buff_size);
     __inplace_merge<_Compare>(__first, __m, __last, __comp, __l2, __len - __l2, __buff, __buff_size);
@@ -4803,7 +5125,9 @@ stable_sort(_RandomAccessIterator __first, _RandomAccessIterator __last)
 }
 
 // is_heap_until
-
+/**
+ * 两根指针一个是自身一个是子节点
+ */
 template <class _RandomAccessIterator, class _Compare>
 _RandomAccessIterator
 is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -4858,7 +5182,10 @@ is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
 }
 
 // push_heap
-
+/**
+ * 将最后一个位置存入临时量然后一点点上浮
+ * 如果不需要上浮就不使用临时量
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __sift_up(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
@@ -4885,7 +5212,9 @@ __sift_up(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare 
         }
     }
 }
-
+/**
+ * 将最后一个元素插入之前的元素组成的堆里面，使用上浮
+ */
 template <class _RandomAccessIterator, class _Compare>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -5003,7 +5332,9 @@ pop_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
 }
 
 // make_heap
-
+/**
+ * 从堆顶开始构造，使用less构造最大堆
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __make_heap(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -5044,7 +5375,9 @@ make_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
 }
 
 // sort_heap
-
+/**
+ * 一个个进行pop_heap
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __sort_heap(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp)
@@ -5078,7 +5411,13 @@ sort_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
 }
 
 // partial_sort
-
+/**
+ * 前半部分建堆，后半部分如果有比堆顶元素小的则堆顶元素一定不属于前半部分
+ * 那么将小的元素交换过去然后重新维护对的性质。
+ *
+ * 得到的堆(前半部分)包含了整个部分中最小的那些元素
+ * 然后对前半部分进行堆排序
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __partial_sort(_RandomAccessIterator __first, _RandomAccessIterator __middle, _RandomAccessIterator __last,
@@ -5123,7 +5462,9 @@ partial_sort(_RandomAccessIterator __first, _RandomAccessIterator __middle, _Ran
 }
 
 // partial_sort_copy
-
+/**
+ * 在目标位置建堆
+ */
 template <class _Compare, class _InputIterator, class _RandomAccessIterator>
 _RandomAccessIterator
 __partial_sort_copy(_InputIterator __first, _InputIterator __last,
@@ -5174,7 +5515,10 @@ partial_sort_copy(_InputIterator __first, _InputIterator __last,
 }
 
 // nth_element
-
+/**
+ * 平均复杂度为O(n)
+ * 类似std::sort(相同的划分方式）
+ */
 template <class _Compare, class _RandomAccessIterator>
 void
 __nth_element(_RandomAccessIterator __first, _RandomAccessIterator __nth, _RandomAccessIterator __last, _Compare __comp)
@@ -5182,6 +5526,7 @@ __nth_element(_RandomAccessIterator __first, _RandomAccessIterator __nth, _Rando
     // _Compare is known to be a reference type
     typedef typename iterator_traits<_RandomAccessIterator>::difference_type difference_type;
     const difference_type __limit = 7;
+    /// 元素较少的时候直接排序
     while (true)
     {
     __restart:
@@ -5401,7 +5746,10 @@ __includes(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __
     }
     return true;
 }
-
+/**
+ * 两个排序的序列，是否互相包含(集合操作)
+ * 顺序比较
+ */
 template <class _InputIterator1, class _InputIterator2, class _Compare>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
@@ -5429,7 +5777,10 @@ includes(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __fi
 }
 
 // set_union
-
+/**
+ * pre: 已排序序列
+ * 类似merge，抛弃重复元素
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 _OutputIterator
 __set_union(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -5483,7 +5834,9 @@ set_union(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // set_intersection
-
+/**
+ * 类似merge，只要重复的元素
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 _OutputIterator
 __set_intersection(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -5535,7 +5888,9 @@ set_intersection(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // set_difference
-
+/**
+ * 第一个集合中且不在第二个集合中的元素
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 _OutputIterator
 __set_difference(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -5589,7 +5944,9 @@ set_difference(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // set_symmetric_difference
-
+/**
+ * 只在一个集合中出现的元素
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2, class _OutputIterator>
 _OutputIterator
 __set_symmetric_difference(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -5648,7 +6005,9 @@ set_symmetric_difference(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // lexicographical_compare
-
+/**
+ * 字典序比较
+ */
 template <class _Compare, class _InputIterator1, class _InputIterator2>
 bool
 __lexicographical_compare(_InputIterator1 __first1, _InputIterator1 __last1,
@@ -5692,7 +6051,11 @@ lexicographical_compare(_InputIterator1 __first1, _InputIterator1 __last1,
 }
 
 // next_permutation
-
+/**
+ * 找到第一个逆序的位置i
+ * 然后将其和第一个比它大的元素交换(重复元素情况不需单独考虑
+ * 之后将i之后的所有元素反序
+ */
 template <class _Compare, class _BidirectionalIterator>
 bool
 __next_permutation(_BidirectionalIterator __first, _BidirectionalIterator __last, _Compare __comp)
@@ -5712,6 +6075,7 @@ __next_permutation(_BidirectionalIterator __first, _BidirectionalIterator __last
             _VSTD::reverse(__ip1, __last);
             return true;
         }
+        /// 如果已经逆序，那么已经完成，reverse回然后返回假
         if (__i == __first)
         {
             _VSTD::reverse(__first, __last);
@@ -5745,7 +6109,9 @@ next_permutation(_BidirectionalIterator __first, _BidirectionalIterator __last)
 }
 
 // prev_permutation
-
+/**
+ * 类似next_permutation，将所有比较反向
+ */
 template <class _Compare, class _BidirectionalIterator>
 bool
 __prev_permutation(_BidirectionalIterator __first, _BidirectionalIterator __last, _Compare __comp)
