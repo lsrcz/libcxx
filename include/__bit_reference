@@ -24,7 +24,9 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Cp, bool _IsConst, typename _Cp::__storage_type = 0> class __bit_iterator;
 template <class _Cp> class __bit_const_reference;
-
+/**
+ * 仅当__has_storage_type满足的时候才有位引用
+ */
 template <class _Tp>
 struct __has_storage_type
 {
@@ -45,11 +47,17 @@ class __bit_reference
     friend class __bit_const_reference<_Cp>;
     friend class __bit_iterator<_Cp, false>;
 public:
+    /// 模拟取bool值以及取反
     _LIBCPP_INLINE_VISIBILITY operator bool() const _NOEXCEPT
         {return static_cast<bool>(*__seg_ & __mask_);}
     _LIBCPP_INLINE_VISIBILITY bool operator ~() const _NOEXCEPT
         {return !static_cast<bool>(*this);}
-
+    /**
+     * 使用bool型赋值 如果值为真就使用|= 如果为假就&= ~__mask_
+     * __mask_指示了目前指向的位置
+     * 如果*__seg_ = 0b000, __mask_ = 1, __x = true 那么取并之后就是__seg_ = 0x001
+     * 如果*__seg_ = 0b111, __mask_ = 1, __x = false, 那么~__mask_ = 0b111...1110, 取与之后就是__seg_ = 0b110
+     */
     _LIBCPP_INLINE_VISIBILITY
     __bit_reference& operator=(bool __x) _NOEXCEPT
     {
@@ -59,25 +67,36 @@ public:
             *__seg_ &= ~__mask_;
         return *this;
     }
-
+    /// 使用__bit_reference进行赋值则将其转换为bool类型调用bool类型的赋值运算符，也即使用对应的值改变目前的状态
     _LIBCPP_INLINE_VISIBILITY
     __bit_reference& operator=(const __bit_reference& __x) _NOEXCEPT
         {return operator=(static_cast<bool>(__x));}
-
+    /**
+     * 使用异或运算完成反转
+     * *__seg_ = 0b000, __mask_ = 1, flip后__seg_为0b001
+     */
     _LIBCPP_INLINE_VISIBILITY void flip() _NOEXCEPT {*__seg_ ^= __mask_;}
     _LIBCPP_INLINE_VISIBILITY __bit_iterator<_Cp, false> operator&() const _NOEXCEPT
         {return __bit_iterator<_Cp, false>(__seg_, static_cast<unsigned>(__ctz(__mask_)));}
 private:
+    /**
+     * 私有构造函数，只能由友元类创建
+     * friend class __bit_const_reference<_Cp>;
+     * friend class __bit_iterator<_Cp, false>;
+     * 即由指针或迭代器代理类解引用获得
+     */
     _LIBCPP_INLINE_VISIBILITY
     __bit_reference(__storage_pointer __s, __storage_type __m) _NOEXCEPT
         : __seg_(__s), __mask_(__m) {}
 };
-
+/// 如果__has_storage_type为false则为空类型
 template <class _Cp>
 class __bit_reference<_Cp, false>
 {
 };
-
+/**
+ * swap会使得对应的位的bool值交换
+ */
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -97,7 +116,9 @@ swap(__bit_reference<_Cp> __x, __bit_reference<_Dp> __y) _NOEXCEPT
     __x = __y;
     __y = __t;
 }
-
+/**
+ * 和bool类型交换也是
+ */
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY
 void
@@ -117,7 +138,10 @@ swap(bool& __x, __bit_reference<_Cp> __y) _NOEXCEPT
     __x = __y;
     __y = __t;
 }
-
+/**
+ * 常量引用
+ *
+ */
 template <class _Cp>
 class __bit_const_reference
 {
@@ -130,6 +154,7 @@ class __bit_const_reference
     friend typename _Cp::__self;
     friend class __bit_iterator<_Cp, true>;
 public:
+    /// 由非常量引用获取常量引用的构造函数是public的，直接从__seg_和__mask_构造的是private的
     _LIBCPP_INLINE_VISIBILITY
     __bit_const_reference(const __bit_reference<_Cp>& __x) _NOEXCEPT
         : __seg_(__x.__seg_), __mask_(__x.__mask_) {}
@@ -1078,7 +1103,13 @@ equal(__bit_iterator<_Cp, _IC1> __first1, __bit_iterator<_Cp, _IC1> __last1, __b
         return __equal_aligned(__first1, __last1, __first2);
     return __equal_unaligned(__first1, __last1, __first2);
 }
-
+/**
+ * 使用_IsConst决定是否为常量迭代器
+ * iterator_category : random_access_iterator_tag
+ * pointer : __bit_iterator(即指针类型依然为自身类型)
+ * reference : 判断是否_IsConst
+ * __storage_pointer，__bits_per_word，__storage_type使用容器的对应成员
+ */
 template <class _Cp, bool _IsConst,
           typename _Cp::__storage_type>
 class __bit_iterator
@@ -1100,19 +1131,20 @@ private:
     unsigned          __ctz_;
 
 public:
+    /// 初始化为空指针，__ctz_ = 0
     _LIBCPP_INLINE_VISIBILITY __bit_iterator() _NOEXCEPT
 #if _LIBCPP_STD_VER > 11
     : __seg_(nullptr), __ctz_(0)
 #endif
     {}
-
+    /// 拷贝赋值运算符拷贝__seg_和__ctz_，拷贝非const的__bit_iterator
     _LIBCPP_INLINE_VISIBILITY
     __bit_iterator(const __bit_iterator<_Cp, false>& __it) _NOEXCEPT
         : __seg_(__it.__seg_), __ctz_(__it.__ctz_) {}
-
+    /// 解引用运算符返回一个__bit_reference，其__mask_为1<<__cnt_
     _LIBCPP_INLINE_VISIBILITY reference operator*() const _NOEXCEPT
         {return reference(__seg_, __storage_type(1) << __ctz_);}
-
+    /// 自增运算符如果增加到一个word的末尾则将__ctz_置零，++__seg_
     _LIBCPP_INLINE_VISIBILITY __bit_iterator& operator++()
     {
         if (__ctz_ != __bits_per_word-1)
@@ -1150,7 +1182,9 @@ public:
         --(*this);
         return __tmp;
     }
-
+    /**
+     * 很容易
+     */
     _LIBCPP_INLINE_VISIBILITY __bit_iterator& operator+=(difference_type __n)
     {
         if (__n >= 0)
