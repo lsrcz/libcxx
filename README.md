@@ -11,6 +11,7 @@ Mirror of official libcxx git repository located at http://llvm.org/git/libcxx. 
 - [memory](include/memory)
 - [new](include/new)
 - [type_traits](include/type_traits)
+- [list](include/list)
 
 部分完成的文件:
 
