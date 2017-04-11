@@ -7,13 +7,14 @@ Mirror of official libcxx git repository located at http://llvm.org/git/libcxx. 
 - [__nullptr](include/__nullptr)
 - [__split_buffer](include/__split_buffer)
 - [algorithm](include/algorithm)
-- [iterator](include/iterator)
 - [memory](include/memory)
 - [new](include/new)
 - [type_traits](include/type_traits)
 - [list](include/list)
+- [deque](include/deque) 除去分块之外并不太大特别，注释比较简略。
 
 部分完成的文件:
 
 - [__bit_reference](include/__bit_reference)
 - [vector](include/vector)
+- [iterator](include/iterator)
