@@ -437,7 +437,7 @@ swap(multimap<Key, T, Compare, Allocator>& x,
 }  // std
 
 */
-
+/// 绝大多数实现使用__tree中的
 #include <__config>
 #include <__tree>
 #include <iterator>
@@ -452,7 +452,9 @@ swap(multimap<Key, T, Compare, Allocator>& x,
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/**
+ * 工具类，允许直接比较对子与值
+ */
 template <class _Key, class _CP, class _Compare, bool _IsSmall>
 class __map_value_compare
     : private _Compare
@@ -556,7 +558,9 @@ swap(__map_value_compare<_Key, _CP, _Compare, __b>& __x,
 {
     __x.swap(__y);
 }
-
+/**
+ * 删除对子使用的删除器
+ */
 template <class _Allocator>
 class __map_node_destructor
 {
