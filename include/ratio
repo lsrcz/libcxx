@@ -77,7 +77,9 @@ typedef ratio<1000000000000000000000000, 1> yotta;  // not supported
     = ratio_greater_equal<R1, R2>::value;                               // C++17
 }
 */
-
+/**
+ * 编译期有理数运算
+ */
 #include <__config>
 #include <cstdint>
 #include <climits>
@@ -92,7 +94,7 @@ typedef ratio<1000000000000000000000000, 1> yotta;  // not supported
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 // __static_gcd
-
+/// 最大公约数
 template <intmax_t _Xp, intmax_t _Yp>
 struct __static_gcd
 {
@@ -112,19 +114,19 @@ struct __static_gcd<0, 0>
 };
 
 // __static_lcm
-
+/// 最小公倍数
 template <intmax_t _Xp, intmax_t _Yp>
 struct __static_lcm
 {
     static const intmax_t value = _Xp / __static_gcd<_Xp, _Yp>::value * _Yp;
 };
-
+/// 绝对值
 template <intmax_t _Xp>
 struct __static_abs
 {
     static const intmax_t value = _Xp < 0 ? -_Xp : _Xp;
 };
-
+/// 符号函数
 template <intmax_t _Xp>
 struct __static_sign
 {
@@ -133,25 +135,27 @@ struct __static_sign
 
 template <intmax_t _Xp, intmax_t _Yp, intmax_t = __static_sign<_Yp>::value>
 class __ll_add;
-
+/// 正号直接加
 template <intmax_t _Xp, intmax_t _Yp>
 class __ll_add<_Xp, _Yp, 1>
 {
+    /// 1000...0001
     static const intmax_t min = (1LL << (sizeof(intmax_t) * CHAR_BIT - 1)) + 1;
+    /// 01111...111
     static const intmax_t max = -min;
 
     static_assert(_Xp <= max - _Yp, "overflow in __ll_add");
 public:
     static const intmax_t value = _Xp + _Yp;
 };
-
+/// 0不加
 template <intmax_t _Xp, intmax_t _Yp>
 class __ll_add<_Xp, _Yp, 0>
 {
 public:
     static const intmax_t value = _Xp;
 };
-
+/// 负号的区别只体现在检查是否衣橱上
 template <intmax_t _Xp, intmax_t _Yp>
 class __ll_add<_Xp, _Yp, -1>
 {
@@ -242,7 +246,9 @@ class __ll_div
 public:
     static const intmax_t value = _Xp / _Yp;
 };
-
+/**
+ * 直接约去gcd
+ */
 template <intmax_t _Num, intmax_t _Den = 1>
 class _LIBCPP_TEMPLATE_VIS ratio
 {
@@ -293,6 +299,7 @@ private:
     static const intmax_t __gcd_n1_d2 = __static_gcd<_R1::num, _R2::den>::value;
     static const intmax_t __gcd_d1_n2 = __static_gcd<_R1::den, _R2::num>::value;
 public:
+    /// 先约去再乘
     typedef typename ratio
         <
             __ll_mul<_R1::num / __gcd_n1_d2, _R2::num / __gcd_d1_n2>::value,
@@ -340,6 +347,14 @@ struct _LIBCPP_TEMPLATE_VIS ratio_divide
 
 #endif  // _LIBCPP_CXX03_LANG
 
+
+/**
+ *     ((n1, n2) * (d1, d2)) / d1
+ *     *
+ *     (n1 * d2 + n2 * d1)
+ *     -------------------   /  d2
+ *     (n1, n2) * (d1, d2)
+ */
 template <class _R1, class _R2>
 struct __ratio_add
 {
@@ -374,7 +389,7 @@ struct _LIBCPP_TEMPLATE_VIS ratio_add
     : public __ratio_add<_R1, _R2>::type {};
 
 #endif  // _LIBCPP_CXX03_LANG
-
+/// 类似add
 template <class _R1, class _R2>
 struct __ratio_subtract
 {
