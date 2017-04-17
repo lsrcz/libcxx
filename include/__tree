@@ -81,7 +81,9 @@ __tree_is_left_child(_NodePtr __x) _NOEXCEPT
 {
     return __x == __x->__parent_->__left_;
 }
-
+/**
+ * 红黑树保持的不变量，判断是否为合法的红黑树节点
+ */
 // Determintes if the subtree rooted at __x is a proper red black subtree.  If
 //    __x is a proper subtree, returns the black height (null counts as 1).  If
 //    __x is an improper subtree, returns 0.
@@ -116,7 +118,9 @@ __tree_sub_invariant(_NodePtr __x)
         return 0;  // invalid or different height right subtree
     return __h + __x->__is_black_;  // return black height of this node
 }
-
+/**
+ * 判断是否为合法的根节点
+ */
 // Determintes if the red black tree rooted at __root is a proper red black tree.
 //    __root == nullptr is a proper tree.  Returns true is __root is a proper
 //    red black tree, else returns false.
@@ -137,7 +141,9 @@ __tree_invariant(_NodePtr __root)
     // do normal node checks
     return __tree_sub_invariant(__root) != 0;
 }
-
+/**
+ * 找最小值
+ */
 // Returns:  pointer to the left-most node under __x.
 // Precondition:  __x != nullptr.
 template <class _NodePtr>
@@ -149,7 +155,9 @@ __tree_min(_NodePtr __x) _NOEXCEPT
         __x = __x->__left_;
     return __x;
 }
-
+/**
+ * 最大值
+ */
 // Returns:  pointer to the right-most node under __x.
 // Precondition:  __x != nullptr.
 template <class _NodePtr>
@@ -161,7 +169,13 @@ __tree_max(_NodePtr __x) _NOEXCEPT
         __x = __x->__right_;
     return __x;
 }
-
+/**
+ * 找下一个中序节点
+ * 1. 如果该节点有右孩子，找该节点右子树中的最小值
+ * 2.1 否则，如果该节点为左孩子进入3
+ * 2.2 如果该节点不是左孩子就向上找到第一个是左节点的孩子
+ * 3. 左孩子的下一个中序节点即为其父节点
+ */
 // Returns:  pointer to the next in-order node after __x.
 // Precondition:  __x != nullptr.
 template <class _NodePtr>
@@ -186,7 +200,9 @@ __tree_next_iter(_NodePtr __x) _NOEXCEPT
         __x = __x->__parent_unsafe();
     return static_cast<_EndNodePtr>(__x->__parent_);
 }
-
+/**
+ * 找前驱节点
+ */
 // Returns:  pointer to the previous in-order node before __x.
 // Precondition:  __x != nullptr.
 // Note: __x may be the end node.
@@ -202,7 +218,9 @@ __tree_prev_iter(_EndNodePtr __x) _NOEXCEPT
         __xx = __xx->__parent_unsafe();
     return __xx->__parent_unsafe();
 }
-
+/**
+ * 以x为根，返回最左边的叶子节点
+ */
 // Returns:  pointer to a node which has no children
 // Precondition:  __x != nullptr.
 template <class _NodePtr>
@@ -225,7 +243,9 @@ __tree_leaf(_NodePtr __x) _NOEXCEPT
     }
     return __x;
 }
-
+/**
+ * 几乎同算法导论算法相同，除了引入__parent_unsafe()而非判断父节点是否为nil
+ */
 // Effects:  Makes __x->__right_ the subtree root with __x as its left child
 //           while preserving in-order order.
 // Precondition:  __x->__right_ != nullptr
@@ -278,28 +298,60 @@ template <class _NodePtr>
 void
 __tree_balance_after_insert(_NodePtr __root, _NodePtr __x) _NOEXCEPT
 {
+    /// 如果__x是根节点的话直接设置为黑色
     __x->__is_black_ = __x == __root;
     while (__x != __root && !__x->__parent_unsafe()->__is_black_)
     {
+        /// 连续两个节点的红色节点
         // __x->__parent_ != __root because __x->__parent_->__is_black == false
         if (__tree_is_left_child(__x->__parent_unsafe()))
         {
+            /// x的父亲是个左儿子
+            /// __y为叔节点
             _NodePtr __y = __x->__parent_unsafe()->__parent_unsafe()->__right_;
             if (__y != nullptr && !__y->__is_black_)
             {
+                /// 如果__y不是黑色
+                /// Case 1:
+                /**
+                 *           pp(__y为R故一定为B)
+                 *          /  \
+                 *       p(R)   __y(R)
+                 *       /
+                 *   __x(R)
+                 */
                 __x = __x->__parent_unsafe();
                 __x->__is_black_ = true;
                 __x = __x->__parent_unsafe();
+                /// 不同于算法导论，并非直接将pp设为红色，而是如果为根就设置为黑色
                 __x->__is_black_ = __x == __root;
                 __y->__is_black_ = true;
             }
             else
             {
+                /// 叔节点为黑色
+                /// Case 2: 如果x是一个右儿子，可以通过一次旋转转换为Case 3
+                /**
+                 *           pp(p为R故一定为B)
+                 *          /  \
+                 *       p(R)   __y(B)
+                 *         \
+                 *        __x(R)
+                 *
+                 */
                 if (!__tree_is_left_child(__x))
                 {
                     __x = __x->__parent_unsafe();
                     __tree_left_rotate(__x);
                 }
+                /// Case 3:
+                /**
+                 *           pp(p为R故一定为B)
+                 *          /  \
+                 *       p(R)   __y(B)
+                 *       /
+                 *    __x(R)
+                 */
                 __x = __x->__parent_unsafe();
                 __x->__is_black_ = true;
                 __x = __x->__parent_unsafe();
@@ -348,12 +400,16 @@ template <class _NodePtr>
 void
 __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
 {
+    /// 没有在删除算法中析构节点
     // __z will be removed from the tree.  Client still needs to destruct/deallocate it
+    /// 如果__z有两个孩子，那么__y是__z的中序后继，否则为__z本身
     // __y is either __z, or if __z has two children, __tree_next(__z).
+    /// __y最多有一个孩子(__tree_next(__z)只有右孩子
     // __y will have at most one child.
     // __y will be the initial hole in the tree (make the hole at a leaf)
     _NodePtr __y = (__z->__left_ == nullptr || __z->__right_ == nullptr) ?
                     __z : __tree_next(__z);
+    /// __x是__y可能为空的孩子，这句话意思是，如果__x为空，则__y没有孩子
     // __x is __y's possibly null single child
     _NodePtr __x = __y->__left_ != nullptr ? __y->__left_ : __y->__right_;
     // __w is __x's possibly null uncle (will become __x's sibling)
@@ -361,6 +417,7 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
     // link __x to __y's parent, and find __w
     if (__x != nullptr)
         __x->__parent_ = __y->__parent_;
+    /// __y也可能为根节点，即删除根节点的情况(根节点为左孩子)
     if (__tree_is_left_child(__y))
     {
         __y->__parent_->__left_ = __x;
@@ -372,12 +429,14 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
     else
     {
         __y->__parent_unsafe()->__right_ = __x;
+        /// 右孩子不可能是根节点
         // __y can't be root if it is a right child
         __w = __y->__parent_->__left_;
     }
     bool __removed_black = __y->__is_black_;
     // If we didn't remove __z, do so now by splicing in __y for __z,
     //    but copy __z's color.  This does not impact __x or __w.
+    /// 将节点(z的后继)连接到z的位置
     if (__y != __z)
     {
         // __z->__left_ != nulptr but __z->__right_ might == __x == nullptr
@@ -424,8 +483,16 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
             {
                 if (!__tree_is_left_child(__w))  // if x is left child
                 {
+                    /// w是x的兄弟
                     if (!__w->__is_black_)
                     {
+                        /**
+                         *             B(B)                     D(B)
+                         *            / \                       / \
+                         *        x->A   D(R)<-w       ->     B(R) E(B)
+                         *         /\    /    \               /  \
+                         *             C(B)    E(B)      x->A(B)  C(B)<-new-w
+                         */
                         __w->__is_black_ = true;
                         __w->__parent_unsafe()->__is_black_ = false;
                         __tree_left_rotate(__w->__parent_unsafe());
@@ -436,6 +503,8 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
                         // reset sibling, and it still can't be null
                         __w = __w->__left_->__right_;
                     }
+                    /// 现在__w是黑色了，可能有空的孩子，如果孩子都是空或黑色
+                    /// x上爬，w设置为红色
                     // __w->__is_black_ is now true, __w may have null children
                     if ((__w->__left_  == nullptr || __w->__left_->__is_black_) &&
                         (__w->__right_ == nullptr || __w->__right_->__is_black_))
@@ -448,6 +517,7 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
                             __x->__is_black_ = true;
                             break;
                         }
+                        /// 重置兄弟
                         // reset sibling, and it still can't be null
                         __w = __tree_is_left_child(__x) ?
                                     __x->__parent_unsafe()->__right_ :
@@ -456,6 +526,8 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
                     }
                     else  // __w has a red child
                     {
+                        /// 如果右孩子是黑色的，说明左孩子是红色，右旋重新染色成为下一种情况
+                        /// (右孩子为红，左孩子可空
                         if (__w->__right_ == nullptr || __w->__right_->__is_black_)
                         {
                             // __w left child is non-null and red
@@ -466,6 +538,7 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
                             // reset sibling, and it still can't be null
                             __w = __w->__parent_unsafe();
                         }
+                        /// 父节点左旋重新染色，之后可结束循环
                         // __w has a right red child, left child may be null
                         __w->__is_black_ = __w->__parent_unsafe()->__is_black_;
                         __w->__parent_unsafe()->__is_black_ = true;
@@ -476,6 +549,7 @@ __tree_remove(_NodePtr __root, _NodePtr __z) _NOEXCEPT
                 }
                 else
                 {
+                    /// 对称的情况
                     if (!__w->__is_black_)
                     {
                         __w->__is_black_ = true;
@@ -547,7 +621,7 @@ struct __is_tree_value_type : false_type {};
 template <class _One>
 struct __is_tree_value_type<_One> : __is_tree_value_type_imp<typename __uncvref<_One>::type> {};
 #endif
-
+/// 如果不是对子，那么key和value是相同的
 template <class _Tp>
 struct __tree_key_value_types {
   typedef _Tp key_type;
@@ -575,7 +649,7 @@ struct __tree_key_value_types {
   }
 #endif
 };
-
+/// __value_type定义在map里
 template <class _Key, class _Tp>
 struct __tree_key_value_types<__value_type<_Key, _Tp> > {
   typedef _Key                                         key_type;
@@ -710,7 +784,7 @@ struct __make_tree_node_types {
 };
 
 // node
-
+/// end_node只有左儿子属性
 template <class _Pointer>
 class __tree_end_node
 {
@@ -721,7 +795,7 @@ public:
     _LIBCPP_INLINE_VISIBILITY
     __tree_end_node() _NOEXCEPT : __left_() {}
 };
-
+/// _tree_node_base是base的基础，提供了__parent_unsafe方法还有set_parent方法
 template <class _VoidPtr>
 class __tree_node_base
     : public __tree_node_base_types<_VoidPtr>::__end_node_type
@@ -1488,7 +1562,9 @@ private:
     template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS map;
     template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS multimap;
 };
-
+/**
+ * 空树
+ */
 template <class _Tp, class _Compare, class _Allocator>
 __tree<_Tp, _Compare, _Allocator>::__tree(const value_compare& __comp)
         _NOEXCEPT_(
@@ -1517,7 +1593,7 @@ __tree<_Tp, _Compare, _Allocator>::__tree(const value_compare& __comp,
 {
     __begin_node() = __end_node();
 }
-
+/// 将整棵树同end_node分离
 // Precondition:  size() != 0
 template <class _Tp, class _Compare, class _Allocator>
 typename __tree<_Tp, _Compare, _Allocator>::__node_pointer
@@ -1535,7 +1611,9 @@ __tree<_Tp, _Compare, _Allocator>::__detach()
     // __cache->__right_ == nullptr
     return __cache;
 }
-
+/**
+ * 分离一个节点
+ */
 // Precondition:  __cache != nullptr
 //    __cache->left_ == nullptr
 //    __cache->right_ == nullptr
@@ -1561,7 +1639,9 @@ __tree<_Tp, _Compare, _Allocator>::__detach(__node_pointer __cache)
         return __cache;
     return static_cast<__node_pointer>(__tree_leaf(__cache->__left_));
 }
-
+/**
+ * 赋值运算符，直接检查是否相同
+ */
 template <class _Tp, class _Compare, class _Allocator>
 __tree<_Tp, _Compare, _Allocator>&
 __tree<_Tp, _Compare, _Allocator>::operator=(const __tree& __t)
@@ -1574,7 +1654,9 @@ __tree<_Tp, _Compare, _Allocator>::operator=(const __tree& __t)
     }
     return *this;
 }
-
+/**
+ * 构造多个元素，不可相同
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _InputIterator>
 void
@@ -1587,6 +1669,7 @@ __tree<_Tp, _Compare, _Allocator>::__assign_unique(_InputIterator __first, _Inpu
 
     if (size() != 0)
     {
+        /// 将整棵树分离，然后将可以复用的节点重新插入，如果节点过多就destroy
         __node_pointer __cache = __detach();
 #ifndef _LIBCPP_NO_EXCEPTIONS
         try
@@ -1616,10 +1699,13 @@ __tree<_Tp, _Compare, _Allocator>::__assign_unique(_InputIterator __first, _Inpu
             destroy(__cache);
         }
     }
+    /// 将剩余的值逐个insert
     for (; __first != __last; ++__first)
         __insert_unique(*__first);
 }
-
+/**
+ * 类似上一个，只是是multi版本
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _InputIterator>
 void
@@ -1818,7 +1904,9 @@ __tree<_Tp, _Compare, _Allocator>::~__tree()
 #endif
   destroy(__root());
 }
-
+/**
+ * destroy将以_nd为根的整棵树递归删除
+ */
 template <class _Tp, class _Compare, class _Allocator>
 void
 __tree<_Tp, _Compare, _Allocator>::destroy(__node_pointer __nd) _NOEXCEPT
@@ -1871,6 +1959,7 @@ __tree<_Tp, _Compare, _Allocator>::clear() _NOEXCEPT
     __end_node()->__left_ = nullptr;
 }
 
+/// 返回插入的最小的地方，如果为空的树就返回end_node()->left
 // Find lower_bound place to insert
 // Set __parent to parent of null leaf
 // Return reference to null leaf
@@ -1948,7 +2037,9 @@ __tree<_Tp, _Compare, _Allocator>::__find_leaf_high(__parent_pointer& __parent,
     __parent = static_cast<__parent_pointer>(__end_node());
     return __parent->__left_;
 }
-
+/**
+ * 如果hint等于__v进行O(logN)搜做，否则调用find_leaf_high/low
+ */
 // Find leaf place to insert closest to __hint
 // First check prior to __hint.
 // Next check after __hint.
@@ -1985,7 +2076,9 @@ __tree<_Tp, _Compare, _Allocator>::__find_leaf(const_iterator __hint,
     // else __v > *__hint
     return __find_leaf_low(__parent, __v);
 }
-
+/**
+ * 返回相等的节点位置，否则返回最接近的地方
+ */
 // Find place to insert if __v doesn't exist
 // Set __parent to parent of null leaf
 // Return reference to null leaf
@@ -2095,7 +2188,10 @@ __tree<_Tp, _Compare, _Allocator>::__find_equal(const_iterator __hint,
     __dummy = static_cast<__node_base_pointer>(__hint.__ptr_);
     return __dummy;
 }
-
+/**
+ * 在对应位置插入节点，接受__child的引用以及一个节点。
+ * 会调用balance
+ */
 template <class _Tp, class _Compare, class _Allocator>
 void
 __tree<_Tp, _Compare, _Allocator>::__insert_node_at(__parent_pointer     __parent,
@@ -2125,6 +2221,7 @@ pair<typename __tree<_Tp, _Compare, _Allocator>::iterator, bool>
 __tree<_Tp, _Compare, _Allocator>::__emplace_unique_key_args(_Key const& __k, _Args& __args)
 #endif
 {
+    /// unique 如果原来没有的话就插入节点
     __parent_pointer __parent;
     __node_base_pointer& __child = __find_equal(__parent, __k);
     __node_pointer __r = static_cast<__node_pointer>(__child);
@@ -2349,7 +2446,9 @@ __tree<_Tp, _Compare, _Allocator>::__node_insert_multi(const_iterator __p,
     __insert_node_at(__parent, __child, static_cast<__node_base_pointer>(__nd));
     return iterator(__nd);
 }
-
+/**
+ * 删除一个节点返回后继
+ */
 template <class _Tp, class _Compare, class _Allocator>
 typename __tree<_Tp, _Compare, _Allocator>::iterator
 __tree<_Tp, _Compare, _Allocator>::erase(const_iterator __p)
@@ -2368,7 +2467,9 @@ __tree<_Tp, _Compare, _Allocator>::erase(const_iterator __p)
     __node_traits::deallocate(__na, __np, 1);
     return __r;
 }
-
+/**
+ * 逐个删除
+ */
 template <class _Tp, class _Compare, class _Allocator>
 typename __tree<_Tp, _Compare, _Allocator>::iterator
 __tree<_Tp, _Compare, _Allocator>::erase(const_iterator __f, const_iterator __l)
@@ -2377,7 +2478,9 @@ __tree<_Tp, _Compare, _Allocator>::erase(const_iterator __f, const_iterator __l)
         __f = erase(__f);
     return iterator(__l.__ptr_);
 }
-
+/**
+ * 删除单个值
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::size_type
@@ -2389,7 +2492,9 @@ __tree<_Tp, _Compare, _Allocator>::__erase_unique(const _Key& __k)
     erase(__i);
     return 1;
 }
-
+/**
+ * 删除多个相同值
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::size_type
@@ -2401,7 +2506,9 @@ __tree<_Tp, _Compare, _Allocator>::__erase_multi(const _Key& __k)
         __p.first = erase(__p.first);
     return __r;
 }
-
+/**
+ * 使用lower_bound
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::iterator
@@ -2423,7 +2530,9 @@ __tree<_Tp, _Compare, _Allocator>::find(const _Key& __v) const
         return __p;
     return end();
 }
-
+/**
+ * count_unique只能有1或0
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::size_type
@@ -2443,7 +2552,9 @@ __tree<_Tp, _Compare, _Allocator>::__count_unique(const _Key& __k) const
     }
     return 0;
 }
-
+/**
+ * 使用std::distance
+ */
 template <class _Tp, class _Compare, class _Allocator>
 template <class _Key>
 typename __tree<_Tp, _Compare, _Allocator>::size_type
