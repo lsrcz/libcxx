@@ -177,7 +177,10 @@ template <class T, class Container, class Compare>
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
+/**
+ * push 使用push_back
+ * pop 使用pop_front
+ */
 template <class _Tp, class _Container = deque<_Tp> > class _LIBCPP_TEMPLATE_VIS queue;
 
 template <class _Tp, class _Container>
@@ -390,7 +393,7 @@ struct _LIBCPP_TEMPLATE_VIS uses_allocator<queue<_Tp, _Container>, _Alloc>
     : public uses_allocator<_Container, _Alloc>
 {
 };
-
+/// 使用algorithms中的堆操作
 template <class _Tp, class _Container = vector<_Tp>,
           class _Compare = less<typename _Container::value_type> >
 class _LIBCPP_TEMPLATE_VIS priority_queue
